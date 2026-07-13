@@ -158,57 +158,261 @@ class VisionTransformer(nn.Module):
     def no_weight_decay(self):
         return {}
 
-    def forward(self, x, masks=None):
+    # def forward(self, x, masks=None):
+    #     """
+    #     :param x: input image/video
+    #     :param masks: indices of patch tokens to mask (remove)
+    #     """
+    #     if masks is not None and not isinstance(masks, list):
+    #         masks = [masks]
+
+    #     # Tokenize input
+    #     # Image
+    #     if x.ndim == 4:
+    #         _, _, H, W = x.shape
+    #         T = 1
+    #     # Video
+    #     elif x.ndim == 5:
+    #         _, _, T, H, W = x.shape
+    #         T = T // self.tubelet_size
+    #     H_patches = H // self.patch_size
+    #     W_patches = W // self.patch_size
+    #     if not self.handle_nonsquare_inputs:
+    #         T = H_patches = W_patches = None
+
+    #     if not self.use_rope:
+    #         pos_embed = self.interpolate_pos_encoding(x, self.pos_embed)
+    #         x = self.patch_embed(x)
+    #         x += pos_embed
+    #     else:
+    #         x = self.patch_embed(x)
+
+    #     # Mask away unwanted tokens (if masks provided)
+    #     if masks is not None:
+    #         x = apply_masks(x, masks)
+    #         masks = torch.cat(masks, dim=0)
+
+    #     # Fwd prop
+    #     outs = []
+    #     for i, blk in enumerate(self.blocks):
+    #         if self.use_activation_checkpointing:
+    #             x = torch.utils.checkpoint.checkpoint(
+    #                 blk, x, masks, None, T=T, H_patches=H_patches, W_patches=W_patches, use_reentrant=False
+    #             )
+    #         else:
+    #             x = blk(x, mask=masks, attn_mask=None, T=T, H_patches=H_patches, W_patches=W_patches)
+    #         if self.out_layers is not None and i in self.out_layers:
+    #             outs.append(self.norm(x))
+
+    #     if self.out_layers is not None:
+    #         return outs
+
+    #     if self.norm is not None:
+    #         x = self.norm(x)
+
+    #     return x
+
+    def forward(self, x, masks=None, return_activations=False):
         """
-        :param x: input image/video
-        :param masks: indices of patch tokens to mask (remove)
+        Forward pass.
+
+        Args:
+            x:
+                Input image/video tensor
+
+            masks:
+                indices of patch tokens to mask
+
+            return_activations:
+                If True, returns intermediate transformer block outputs
+                from selected layers.
+
+        Returns:
+            If return_activations=False:
+                x -> final representation
+
+            If return_activations=True:
+                x, activations
         """
+
         if masks is not None and not isinstance(masks, list):
             masks = [masks]
 
+
+        # -------------------------------------------------
         # Tokenize input
-        # Image
+        # -------------------------------------------------
+
         if x.ndim == 4:
+
             _, _, H, W = x.shape
             T = 1
-        # Video
+
         elif x.ndim == 5:
+
             _, _, T, H, W = x.shape
             T = T // self.tubelet_size
+
+
         H_patches = H // self.patch_size
         W_patches = W // self.patch_size
+
+
         if not self.handle_nonsquare_inputs:
             T = H_patches = W_patches = None
 
+
+
+        # -------------------------------------------------
+        # Patch embedding
+        # -------------------------------------------------
+
         if not self.use_rope:
-            pos_embed = self.interpolate_pos_encoding(x, self.pos_embed)
+
+            pos_embed = self.interpolate_pos_encoding(
+                x,
+                self.pos_embed
+            )
+
             x = self.patch_embed(x)
+
             x += pos_embed
+
+
         else:
+
             x = self.patch_embed(x)
 
-        # Mask away unwanted tokens (if masks provided)
-        if masks is not None:
-            x = apply_masks(x, masks)
-            masks = torch.cat(masks, dim=0)
 
-        # Fwd prop
+
+        # -------------------------------------------------
+        # Apply masks
+        # -------------------------------------------------
+
+        if masks is not None:
+
+            x = apply_masks(
+                x,
+                masks
+            )
+
+            masks = torch.cat(
+                masks,
+                dim=0
+            )
+
+
+
+        # -------------------------------------------------
+        # Transformer blocks
+        # -------------------------------------------------
+
+        activations = {}
+
+        # Blocks we want to cache
+        # index starts from 0
+        save_blocks = {
+            2: "block_3",
+            5: "block_6",
+            8: "block_9",
+            11: "block_12"
+        }
+
+
         outs = []
+
+
         for i, blk in enumerate(self.blocks):
+
+
             if self.use_activation_checkpointing:
+
                 x = torch.utils.checkpoint.checkpoint(
-                    blk, x, masks, None, T=T, H_patches=H_patches, W_patches=W_patches, use_reentrant=False
+                    blk,
+                    x,
+                    masks,
+                    None,
+                    T=T,
+                    H_patches=H_patches,
+                    W_patches=W_patches,
+                    use_reentrant=False
                 )
+
+
             else:
-                x = blk(x, mask=masks, attn_mask=None, T=T, H_patches=H_patches, W_patches=W_patches)
+
+                x = blk(
+                    x,
+                    mask=masks,
+                    attn_mask=None,
+                    T=T,
+                    H_patches=H_patches,
+                    W_patches=W_patches
+                )
+
+
+
+            # ---------------------------------------------
+            # Cache intermediate activations
+            # ---------------------------------------------
+
+            if return_activations and i in save_blocks:
+
+                if self.norm is not None:
+                    activations[
+                        save_blocks[i]
+                    ] = self.norm(
+                        x
+                    ).detach()
+
+                else:
+                    activations[
+                        save_blocks[i]
+                    ] = x.detach()
+
+
+
+            # Original V-JEPA behaviour
             if self.out_layers is not None and i in self.out_layers:
-                outs.append(self.norm(x))
+
+                outs.append(
+                    self.norm(x)
+                )
+
+
+
+        # -------------------------------------------------
+        # Existing out_layers functionality
+        # -------------------------------------------------
 
         if self.out_layers is not None:
+
+            if return_activations:
+
+                return outs, activations
+
             return outs
 
+
+
+        # -------------------------------------------------
+        # Final normalization
+        # -------------------------------------------------
+
         if self.norm is not None:
+
             x = self.norm(x)
+
+
+
+        # -------------------------------------------------
+        # Return
+        # -------------------------------------------------
+
+        if return_activations:
+
+            return x, activations
+
 
         return x
 

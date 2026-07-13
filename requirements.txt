@@ -12,7 +12,8 @@ webdataset
 timm
 transformers
 peft
-decord
+# decord
+eva-decord
 pandas
 einops
 beartype
