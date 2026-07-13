@@ -2,6 +2,7 @@
 *.pyc
 .vscode/
 .*.swp
+.github
 frames
 vjepa_features
 vjepa_feats
