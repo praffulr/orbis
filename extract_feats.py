@@ -49,7 +49,7 @@ os.makedirs(
 
 NUM_FRAMES = 16
 
-
+# ################Check vjepa fps
 FRAME_STRIDE = 2
 # 10 FPS -> 5 FPS
 
@@ -248,31 +248,73 @@ def get_frames(video_id):
 
 
 
-def sample_indices(
-        start,
-        total
-):
+# def sample_indices(
+#         start,
+#         total
+# ):
 
 
-    idx=[
+#     idx=[
 
-        start+i*FRAME_STRIDE
+#         start+i*FRAME_STRIDE
 
+#         for i in range(NUM_FRAMES)
+
+#     ]
+
+
+
+#     if idx[-1]>=total:
+
+#         return None
+
+
+
+#     return idx
+
+# ============================================================
+# V-JEPA TEMPORAL SAMPLING
+# ============================================================
+
+
+def sample_indices(start, total_frames):
+
+    """
+    DoTA:
+        10 FPS
+
+    V-JEPA:
+        5 FPS input
+
+    Therefore:
+        stride = 2
+
+    Example:
+
+    raw frames:
+    40 41 42 43 ... 70
+
+    sampled:
+    40 42 44 ... 70
+
+    Total:
+    16 frames
+    """
+
+    indices = [
+        start + i * FRAME_STRIDE
         for i in range(NUM_FRAMES)
-
     ]
 
 
+    # validation:
+    # last sampled frame must exist
 
-    if idx[-1]>=total:
-
+    if indices[-1] >= total_frames:
         return None
 
 
-
-    return idx
-
-
+    return indices
 
 
 
@@ -315,7 +357,8 @@ def anomaly_clip(
 
 def normal_clip(
         frames,
-        anomaly_start
+        anomaly_start,
+        anomaly_end
 ):
 
 
@@ -323,7 +366,10 @@ def normal_clip(
 
 
 
-    # beginning
+    # =====================================================
+    # CASE 1:
+    # take beginning of video
+    # =====================================================
 
 
     idx=sample_indices(
@@ -338,26 +384,60 @@ def normal_clip(
         if idx[-1] < anomaly_start:
 
 
-            return make_clip(
+            return (
+                make_clip(
+                    frames,
+                    idx
+                ),
+                idx
+            )
+
+
+
+    # =====================================================
+    # CASE 2:
+    # take frames after anomaly
+    # =====================================================
+
+
+    start = anomaly_end + 1
+
+
+
+    idx=sample_indices(
+        start,
+        total
+    )
+
+
+    if idx is not None:
+
+
+        return (
+            make_clip(
                 frames,
                 idx
-            ),idx
+            ),
+            idx
+        )
 
 
 
+    # =====================================================
+    # CASE 3:
+    # take frames before anomaly
+    # =====================================================
 
 
-    # before anomaly
-
-
-    start=(
+    start = (
         anomaly_start
         -
         (NUM_FRAMES-1)*FRAME_STRIDE
     )
 
 
-    if start>=0:
+
+    if start >=0:
 
 
         idx=sample_indices(
@@ -372,11 +452,13 @@ def normal_clip(
             if idx[-1] < anomaly_start:
 
 
-                return make_clip(
-                    frames,
+                return (
+                    make_clip(
+                        frames,
+                        idx
+                    ),
                     idx
-                ),idx
-
+                )
 
 
 
@@ -582,28 +664,116 @@ def process_video(
 
 
 
-    start=ann.get(
+    # start=ann.get(
+    #     "anomaly_start",
+    #     -1
+    # )
+
+
+    # if start<0:
+
+    #     return
+
+    # ============================================================
+    # ANNOTATION VALIDATION
+    # ============================================================
+
+
+    if str(ann.get("ignore","false")).lower() != "false":
+
+        return
+
+
+
+    start = ann.get(
         "anomaly_start",
         -1
     )
 
 
-    if start<0:
+    end = ann.get(
+        "anomaly_end",
+        -1
+    )
+
+
+    num_frames = ann.get(
+        "num_frames",
+        -1
+    )
+
+
+
+    if start < 0:
 
         return
 
 
+
+    if end < 0:
+
+        return
+
+
+
+    if num_frames < 0:
+
+        return
+
+
+
+    # frames=get_frames(
+    #     vid
+    # )
+
+
+    # if len(frames)<32:
+
+    #     return
 
     frames=get_frames(
         vid
     )
 
 
-    if len(frames)<32:
+    # verify annotation matches actual frames
+
+    if len(frames) != num_frames:
+
+        print(
+            "Frame mismatch:",
+            vid,
+            len(frames),
+            num_frames
+        )
+
+
+    total_frames=len(frames)
+
+
+
+    # minimum frames required:
+    #
+    # 16 frames
+    # stride 2
+    #
+    # span:
+    # 0,2,4,...30
+    #
+    # requires 31 raw frames
+
+    minimum_required = (
+        (NUM_FRAMES-1)
+        *
+        FRAME_STRIDE
+        +
+        1
+    )
+
+
+    if total_frames < minimum_required:
 
         return
-
-
 
 
     # anomaly
@@ -651,9 +821,10 @@ def process_video(
 
 
     clip,idx=normal_clip(
-        frames,
-        start
-    )
+    frames,
+    start,
+    end
+)
 
 
     if clip:

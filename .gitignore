@@ -12,6 +12,8 @@ run_vjepa_aws.py
 run.py
 main_distributed_video.py
 main_video.py
+cached_features/
+wandb/
 
 app/vjepa/configs/temp_aws
 app/main_dev.py

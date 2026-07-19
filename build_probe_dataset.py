@@ -12,10 +12,17 @@ from sklearn.model_selection import train_test_split
 
 FEATURE_ROOT = "vjepa_features"
 
-NORMAL_DIR = os.path.join(FEATURE_ROOT, "normal")
-ANOMALY_DIR = os.path.join(FEATURE_ROOT, "anomaly")
+NORMAL_DIR = os.path.join(
+    FEATURE_ROOT,
+    "normal"
+)
 
-# Build probe datasets for all cached representations
+ANOMALY_DIR = os.path.join(
+    FEATURE_ROOT,
+    "anomaly"
+)
+
+
 LAYERS = [
     "final",
     "block_3",
@@ -24,134 +31,281 @@ LAYERS = [
     "block_12"
 ]
 
-OUTPUT_FILE = "probe_dataset.pt"
+
+OUTPUT_DIR = "cached_features"
+
+os.makedirs(
+    OUTPUT_DIR,
+    exist_ok=True
+)
+
 
 TEST_SIZE = 0.20
 SEED = 42
+
 
 
 # ============================================================
 # LOAD FEATURES
 # ============================================================
 
-def load_features(folder):
 
-    data = {layer: [] for layer in LAYERS}
+def load_features(folder, layer):
 
-    files = sorted(glob.glob(os.path.join(folder, "*.pt")))
+    features=[]
+    labels=[]
 
-    print(f"{folder}: {len(files)} files")
 
-    valid = 0
+    files=sorted(
+        glob.glob(
+            os.path.join(folder,"*.pt")
+        )
+    )
+
+
+    print("\nLoading:",folder)
+    print("Files:",len(files))
+
+
+    label=0 if "normal" in folder else 1
+
+
+    valid=0
+    shapes=set()
+
 
     for f in files:
 
-        sample = torch.load(
+
+        sample=torch.load(
             f,
             map_location="cpu",
             weights_only=False
         )
 
-        feat = sample["feature"]
 
-        ok = True
+        feat=sample["feature"]
 
-        current = {}
 
-        for layer in LAYERS:
+        if layer not in feat:
+            continue
 
-            if layer not in feat:
-                ok = False
-                break
 
-            x = feat[layer]
+        x=feat[layer]
 
-            # ---------------------------------------
-            # Final embedding already has shape (768)
-            # ---------------------------------------
-            if layer == "final":
 
-                if x.ndim != 1:
-                    x = x.squeeze()
+        # -------------------------------
+        # FINAL EMBEDDING
+        # -------------------------------
 
-            # ---------------------------------------
-            # Cached activations:
-            # (576,768) -> mean over tokens -> (768)
-            # ---------------------------------------
-            else:
+        if layer=="final":
 
-                if x.ndim == 2:
-                    x = x.mean(dim=0)
+            x=x.squeeze()
 
-                elif x.ndim == 3:
-                    x = x.mean(dim=1).squeeze(0)
 
-            current[layer] = x.numpy()
+        # -------------------------------
+        # BLOCK ACTIVATIONS
+        #
+        # keep unpooled tokens
+        #
+        # (1152,768)
+        # -------------------------------
 
-        if ok:
+        else:
 
-            valid += 1
+            if x.ndim==3:
+                x=x.squeeze(0)
 
-            for layer in LAYERS:
-                data[layer].append(current[layer])
 
-    print("Valid samples:", valid)
+            if x.ndim!=2:
+                print(
+                    "Invalid block shape:",
+                    layer,
+                    x.shape,
+                    f
+                )
+                continue
 
-    return data
+
+        shapes.add(
+            tuple(x.shape)
+        )
+
+
+        features.append(
+            x.float()
+        )
+
+        labels.append(
+            label
+        )
+
+
+        valid+=1
+
+
+
+    print("Valid:",valid)
+
+    print("Shapes:",shapes)
+
+
+    if len(shapes)>1:
+
+        raise RuntimeError(
+            f"Inconsistent shapes for {layer}: {shapes}"
+        )
+
+
+    return features,labels
+
+
+
+
+# ============================================================
+# BUILD DATASET
+# ============================================================
+
+
+def build_layer_dataset(layer):
+
+
+    print("\n================================")
+    print("Building:",layer)
+    print("================================")
+
+
+    normal_x,normal_y=load_features(
+        NORMAL_DIR,
+        layer
+    )
+
+
+    anomaly_x,anomaly_y=load_features(
+        ANOMALY_DIR,
+        layer
+    )
+
+
+    X=normal_x+anomaly_x
+    y=normal_y+anomaly_y
+
+
+
+    X=torch.stack(
+        X
+    )
+
+
+    y=torch.tensor(
+        y,
+        dtype=torch.long
+    )
+
+
+    print(
+        "Feature shape:",
+        X.shape
+    )
+
+    print(
+        "Labels:",
+        y.shape
+    )
+
+
+
+    indices=np.arange(
+        len(y)
+    )
+
+
+    train_idx,val_idx=train_test_split(
+        indices,
+        test_size=TEST_SIZE,
+        random_state=SEED,
+        stratify=y.numpy()
+    )
+
+
+    train_features=X[train_idx]
+    val_features=X[val_idx]
+
+    train_labels=y[train_idx]
+    val_labels=y[val_idx]
+
+
+
+    print(
+        "Train:",
+        train_features.shape
+    )
+
+    print(
+        "Val:",
+        val_features.shape
+    )
+
+
+
+    train_file=os.path.join(
+        OUTPUT_DIR,
+        f"train_{layer}.pt"
+    )
+
+
+    val_file=os.path.join(
+        OUTPUT_DIR,
+        f"val_{layer}.pt"
+    )
+
+
+
+    torch.save(
+        {
+            "features":train_features,
+            "labels":train_labels
+        },
+        train_file
+    )
+
+
+    torch.save(
+        {
+            "features":val_features,
+            "labels":val_labels
+        },
+        val_file
+    )
+
+
+
+    print("Saved:")
+    print(train_file)
+    print(val_file)
+
+
+
 
 
 # ============================================================
 # MAIN
 # ============================================================
 
+
 def main():
 
-    normal = load_features(NORMAL_DIR)
-    anomaly = load_features(ANOMALY_DIR)
-
-    dataset = {}
-
-    labels_normal = np.zeros(len(normal["final"]), dtype=np.float32)
-    labels_anomaly = np.ones(len(anomaly["final"]), dtype=np.float32)
-
-    y = np.concatenate([labels_normal, labels_anomaly])
-
     for layer in LAYERS:
 
-        X = np.concatenate(
-            [
-                np.array(normal[layer]),
-                np.array(anomaly[layer])
-            ],
-            axis=0
-        )
+        build_layer_dataset(layer)
 
-        print(f"{layer:10s} -> {X.shape}")
-
-        X_train, X_val, y_train, y_val = train_test_split(
-            X,
-            y,
-            test_size=TEST_SIZE,
-            random_state=SEED,
-            stratify=y
-        )
-
-        dataset[layer] = {
-            "X_train": X_train,
-            "X_val": X_val,
-            "y_train": y_train,
-            "y_val": y_val
-        }
-
-    torch.save(dataset, OUTPUT_FILE)
 
     print("\n==============================")
-    print("PROBE DATASET CREATED")
+    print("PROBE DATASET COMPLETE")
     print("==============================")
 
-    for layer in LAYERS:
-        print(layer)
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
+
     main()

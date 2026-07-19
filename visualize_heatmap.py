@@ -10,21 +10,25 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 FEATURE_FILE = (
+    # "vjepa_features/anomaly/0RJPQ_97dcs_001437.pt"
+    # "vjepa_features/anomaly/2TmFM9p1KF8_005238.pt"
+    # "vjepa_features/anomaly/3Sqeb-l1RPA_001183.pt"
+    # "vjepa_features/normal/0RJPQ_97dcs_002296.pt"
+    # "vjepa_features/normal/0RJPQ_97dcs_002409.pt"
     "vjepa_features/normal/0RJPQ_97dcs_003475.pt"
 )
 
 
-FRAME_ROOT = "frames"
+FRAME_ROOT="frames"
 
 
-LAYER = "block_6"
+LAYER="block_12"
 
 
-FRAME_NUMBER = 8
-# choose frame inside 16-frame clip
+FRAME_NUMBER=2
 
 
-IMG_SIZE = 384
+IMG_SIZE=384
 
 
 
@@ -33,52 +37,58 @@ IMG_SIZE = 384
 # ============================================================
 
 
-data = torch.load(
+data=torch.load(
     FEATURE_FILE,
     map_location="cpu",
     weights_only=False
 )
 
 
-video_id = data["video"]
+video_id=data["video"]
 
 
-indices = data["indices"]
+indices=data["indices"]
 
 
-activation = data["feature"][LAYER]
+activation=data["feature"][LAYER]
 
 
 print("Video:",video_id)
-print("Frame indices:",indices)
+
 print(
-    "Activation:",
+    "Sampled frame indices:",
+    indices
+)
+
+
+print(
+    "Activation shape:",
     activation.shape
 )
 
 
 
 # ============================================================
-# LOAD FRAME
+# LOAD ORIGINAL FRAME
 # ============================================================
 
 
-frames = sorted(
+image_dir=os.path.join(
+    FRAME_ROOT,
+    video_id,
+    "images"
+)
+
+
+
+frames=sorted(
     [
         os.path.join(
-            FRAME_ROOT,
-            video_id,
-            "images",
+            image_dir,
             f
         )
 
-        for f in os.listdir(
-            os.path.join(
-                FRAME_ROOT,
-                video_id,
-                "images"
-            )
-        )
+        for f in os.listdir(image_dir)
 
         if f.endswith(".jpg")
     ]
@@ -86,7 +96,7 @@ frames = sorted(
 
 
 
-frame_path = frames[
+frame_path=frames[
     indices[FRAME_NUMBER]
 ]
 
@@ -110,35 +120,42 @@ img=cv2.resize(
 
 
 # ============================================================
-# TEMPORAL-SPATIAL TOKEN PROCESSING
+# TOKEN PROCESSING
 # ============================================================
 
-tokens = activation.numpy()
+
+tokens=activation.numpy()
 
 
 print(
-    "Tokens:",
-    tokens.shape
+    "Total tokens:",
+    tokens.shape[0]
 )
 
 
-# V-JEPA2:
-#
-# tokens:
-# [Tubes, Spatial_Patches, Feature]
-#
-# Here:
-#
-# 4608 = 8 * 576
-#
-# 576 = 24*24
+
+PATCHES_PER_FRAME=24*24
 
 
-TEMPORAL_TOKENS = 8
-PATCHES_PER_FRAME = 24*24
+
+assert tokens.shape[0] % PATCHES_PER_FRAME == 0, \
+    "Token count cannot be divided into spatial patches"
 
 
-tokens = tokens.reshape(
+
+TEMPORAL_TOKENS = (
+    tokens.shape[0] //
+    PATCHES_PER_FRAME
+)
+
+
+print(
+    "Temporal tokens:",
+    TEMPORAL_TOKENS
+)
+
+
+tokens=tokens.reshape(
     TEMPORAL_TOKENS,
     PATCHES_PER_FRAME,
     768
@@ -146,17 +163,33 @@ tokens = tokens.reshape(
 
 
 
-# choose temporal location
-#
-# 0-7 possible
-
-TEMPORAL_INDEX = 4
+# ============================================================
+# SELECT TEMPORAL TOKEN
+# ============================================================
 
 
+# Map original frame number
+# to temporal token
 
-spatial_tokens = tokens[
-    TEMPORAL_INDEX
+
+temporal_index = min(
+    FRAME_NUMBER // 2,
+    TEMPORAL_TOKENS-1
+)
+
+
+
+print(
+    "Using temporal token:",
+    temporal_index
+)
+
+
+
+spatial_tokens=tokens[
+    temporal_index
 ]
+
 
 
 print(
@@ -166,36 +199,32 @@ print(
 
 
 
-# feature magnitude
+# ============================================================
+# CREATE HEATMAP
+# ============================================================
 
-heatmap = np.mean(
+
+heatmap=np.mean(
     np.abs(spatial_tokens),
     axis=1
 )
 
 
 
-heatmap = heatmap.reshape(
+heatmap=heatmap.reshape(
     24,
     24
 )
 
 
 
-# normalize
+heatmap-=heatmap.min()
 
-heatmap = (
-    heatmap -
-    heatmap.min()
-)
-
-heatmap /= (
+heatmap/=(
     heatmap.max()+1e-8
 )
 
 
-
-# resize to image
 
 heatmap=cv2.resize(
     heatmap,
@@ -204,14 +233,13 @@ heatmap=cv2.resize(
 
 
 
-# apply colormap
-
 heatmap_color=cv2.applyColorMap(
     np.uint8(
         heatmap*255
     ),
     cv2.COLORMAP_JET
 )
+
 
 
 heatmap_color=cv2.cvtColor(
@@ -226,8 +254,8 @@ heatmap_color=cv2.cvtColor(
 # ============================================================
 
 
-overlay = (
-    0.6*img +
+overlay=(
+    0.6*img+
     0.4*heatmap_color
 )
 
@@ -248,30 +276,44 @@ plt.figure(
 )
 
 
+
 plt.subplot(1,3,1)
+
 plt.imshow(img)
-plt.title("Original")
+
+plt.title(
+    "Original"
+)
+
 plt.axis("off")
 
 
+
 plt.subplot(1,3,2)
+
 plt.imshow(
     heatmap,
     cmap="jet"
 )
+
 plt.title(
-    LAYER+" activation"
+    f"{LAYER} activation"
 )
+
 plt.axis("off")
 
 
+
 plt.subplot(1,3,3)
+
 plt.imshow(
     overlay
 )
+
 plt.title(
     "Overlay"
 )
+
 plt.axis("off")
 
 
@@ -285,6 +327,8 @@ plt.savefig(
 )
 
 
+
 print(
     "Saved activation_heatmap.png"
 )
+
