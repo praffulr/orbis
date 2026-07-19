@@ -13,6 +13,7 @@ run.py
 main_distributed_video.py
 main_video.py
 cached_features/
+temp_heatmap_img/
 wandb/
 
 app/vjepa/configs/temp_aws
