@@ -12,154 +12,120 @@ from sklearn.model_selection import train_test_split
 
 FEATURE_ROOT = "vjepa_features"
 
-NORMAL_DIR = os.path.join(
-    FEATURE_ROOT,
-    "normal"
-)
 
-ANOMALY_DIR = os.path.join(
-    FEATURE_ROOT,
-    "anomaly"
-)
+NORMAL_DIR = os.path.join(FEATURE_ROOT, "normal")
 
 
-LAYERS = [
-    "final",
-    "block_3",
-    "block_6",
-    "block_9",
-    "block_12"
-]
+ANOMALY_DIR = os.path.join(FEATURE_ROOT, "anomaly")
+
+
+LAYERS = ["final", "block_3", "block_6", "block_9", "block_12"]
 
 
 OUTPUT_DIR = "cached_features"
 
-os.makedirs(
-    OUTPUT_DIR,
-    exist_ok=True
-)
+
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
 TEST_SIZE = 0.20
+
 SEED = 42
 
 
-
 # ============================================================
-# LOAD FEATURES
+# LOAD SINGLE LAYER
 # ============================================================
 
 
-def load_features(folder, layer):
+def load_layer_features(folder, layer):
 
-    features=[]
-    labels=[]
+    features = []
+    labels = []
 
+    files = sorted(glob.glob(os.path.join(folder, "*.pt")))
 
-    files=sorted(
-        glob.glob(
-            os.path.join(folder,"*.pt")
-        )
-    )
+    label = 0 if "normal" in folder else 1
 
+    print("\n--------------------------------")
+    print("Folder:", folder)
+    print("Layer :", layer)
+    print("Files :", len(files))
+    print("--------------------------------")
 
-    print("\nLoading:",folder)
-    print("Files:",len(files))
+    valid = 0
 
+    shapes = set()
 
-    label=0 if "normal" in folder else 1
+    for file in files:
 
+        sample = torch.load(file, map_location="cpu", weights_only=False)
 
-    valid=0
-    shapes=set()
+        feature_dict = sample["feature"]
 
+        if layer not in feature_dict:
 
-    for f in files:
-
-
-        sample=torch.load(
-            f,
-            map_location="cpu",
-            weights_only=False
-        )
-
-
-        feat=sample["feature"]
-
-
-        if layer not in feat:
             continue
 
+        x = feature_dict[layer]
 
-        x=feat[layer]
-
-
-        # -------------------------------
-        # FINAL EMBEDDING
-        # -------------------------------
+        # =================================================
+        # FINAL REPRESENTATION
+        # =================================================
 
         if layer=="final":
 
             x=x.squeeze()
 
 
-        # -------------------------------
-        # BLOCK ACTIVATIONS
-        #
-        # keep unpooled tokens
-        #
-        # (1152,768)
-        # -------------------------------
+            # final tokens
+            # expected:
+            # [1152,768]
+
+            if x.ndim != 2:
+
+                print(
+                    "Invalid final token shape:",
+                    x.shape,
+                    file
+                )
+
+                continue
+
+        # =================================================
+        # BLOCK REPRESENTATION
+        # =================================================
 
         else:
 
-            if x.ndim==3:
-                x=x.squeeze(0)
+            # expected:
+            # [1152,768]
 
+            x = x.squeeze()
 
-            if x.ndim!=2:
-                print(
-                    "Invalid block shape:",
-                    layer,
-                    x.shape,
-                    f
-                )
+            if x.ndim != 2:
+
+                print("Invalid block shape:", x.shape, file)
+
                 continue
 
+        shapes.add(tuple(x.shape))
 
-        shapes.add(
-            tuple(x.shape)
-        )
+        features.append(x.float())
 
+        labels.append(label)
 
-        features.append(
-            x.float()
-        )
+        valid += 1
 
-        labels.append(
-            label
-        )
+    print("Valid samples:", valid)
 
+    print("Feature shapes:", shapes)
 
-        valid+=1
+    if len(shapes) != 1:
 
+        raise RuntimeError(f"Inconsistent shapes detected for {layer}: {shapes}")
 
-
-    print("Valid:",valid)
-
-    print("Shapes:",shapes)
-
-
-    if len(shapes)>1:
-
-        raise RuntimeError(
-            f"Inconsistent shapes for {layer}: {shapes}"
-        )
-
-
-    return features,labels
-
-
+    return features, labels
 
 
 # ============================================================
@@ -167,125 +133,86 @@ def load_features(folder, layer):
 # ============================================================
 
 
-def build_layer_dataset(layer):
+def build_dataset(layer):
 
-
-    print("\n================================")
-    print("Building:",layer)
+    print("\n\n================================")
+    print("Processing layer:", layer)
     print("================================")
 
+    normal_features, normal_labels = load_layer_features(NORMAL_DIR, layer)
 
-    normal_x,normal_y=load_features(
-        NORMAL_DIR,
-        layer
+    anomaly_features, anomaly_labels = load_layer_features(ANOMALY_DIR, layer)
+
+    X = normal_features + anomaly_features
+
+    y = normal_labels + anomaly_labels
+
+    X = torch.stack(X)
+
+    y = torch.tensor(y, dtype=torch.long)
+
+    print("\nComplete dataset")
+
+    print("Features:", X.shape)
+
+    print("Labels:", y.shape)
+
+    print("Normal:", (y == 0).sum().item())
+
+    print("Anomaly:", (y == 1).sum().item())
+
+    # =====================================================
+    # TRAIN VALIDATION SPLIT
+    # =====================================================
+
+    indices = np.arange(len(y))
+
+    train_idx, val_idx = train_test_split(
+        indices, test_size=TEST_SIZE, random_state=SEED, stratify=y.numpy()
     )
 
+    train_x = X[train_idx]
 
-    anomaly_x,anomaly_y=load_features(
-        ANOMALY_DIR,
-        layer
-    )
+    train_y = y[train_idx]
 
+    val_x = X[val_idx]
 
-    X=normal_x+anomaly_x
-    y=normal_y+anomaly_y
+    val_y = y[val_idx]
 
+    print("\nSplit")
 
+    print("Train:", train_x.shape)
 
-    X=torch.stack(
-        X
-    )
+    print("Val:", val_x.shape)
 
+    # =====================================================
+    # SAVE
+    # =====================================================
 
-    y=torch.tensor(
-        y,
-        dtype=torch.long
-    )
+    train_path = os.path.join(OUTPUT_DIR, f"train_{layer}.pt")
 
-
-    print(
-        "Feature shape:",
-        X.shape
-    )
-
-    print(
-        "Labels:",
-        y.shape
-    )
-
-
-
-    indices=np.arange(
-        len(y)
-    )
-
-
-    train_idx,val_idx=train_test_split(
-        indices,
-        test_size=TEST_SIZE,
-        random_state=SEED,
-        stratify=y.numpy()
-    )
-
-
-    train_features=X[train_idx]
-    val_features=X[val_idx]
-
-    train_labels=y[train_idx]
-    val_labels=y[val_idx]
-
-
-
-    print(
-        "Train:",
-        train_features.shape
-    )
-
-    print(
-        "Val:",
-        val_features.shape
-    )
-
-
-
-    train_file=os.path.join(
-        OUTPUT_DIR,
-        f"train_{layer}.pt"
-    )
-
-
-    val_file=os.path.join(
-        OUTPUT_DIR,
-        f"val_{layer}.pt"
-    )
-
-
+    val_path = os.path.join(OUTPUT_DIR, f"val_{layer}.pt")
 
     torch.save(
         {
-            "features":train_features,
-            "labels":train_labels
+            "features": train_x,
+            "labels": train_y,
+            "layer": layer,
+            "num_samples": len(train_y),
         },
-        train_file
+        train_path,
     )
-
 
     torch.save(
-        {
-            "features":val_features,
-            "labels":val_labels
-        },
-        val_file
+        {"features": val_x, "labels": val_y, "layer": layer, "num_samples": len(val_y)},
+        val_path,
     )
 
+    print("\nSaved")
 
+    print(train_path)
 
-    print("Saved:")
-    print(train_file)
-    print(val_file)
-
-
-
+    print(val_path)
 
 
 # ============================================================
@@ -297,15 +224,13 @@ def main():
 
     for layer in LAYERS:
 
-        build_layer_dataset(layer)
+        build_dataset(layer)
+
+    print("\n================================")
+    print("ALL PROBE DATASETS CREATED")
+    print("================================")
 
 
-    print("\n==============================")
-    print("PROBE DATASET COMPLETE")
-    print("==============================")
-
-
-
-if __name__=="__main__":
+if __name__ == "__main__":
 
     main()
