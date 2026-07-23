@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 # CONFIG
 # ============================================================
 
-FEATURE_ROOT = "vjepa_features"
+FEATURE_ROOT = "vjepa_features_tb5"
 
 
 NORMAL_DIR = os.path.join(FEATURE_ROOT, "normal")
@@ -19,7 +19,9 @@ NORMAL_DIR = os.path.join(FEATURE_ROOT, "normal")
 ANOMALY_DIR = os.path.join(FEATURE_ROOT, "anomaly")
 
 
-LAYERS = ["final", "block_3", "block_6", "block_9", "block_12"]
+# LAYERS = ["final", "block_3", "block_6", "block_9", "block_12"]
+
+LAYERS = ["final"]
 
 
 OUTPUT_DIR = "cached_features"
@@ -75,17 +77,24 @@ def load_layer_features(folder, layer):
 
         if layer=="final":
 
-            x=x.squeeze()
-
-
-            # final tokens
-            # expected:
-            # [1152,768]
+            x = x.squeeze()
 
             if x.ndim != 2:
 
                 print(
                     "Invalid final token shape:",
+                    x.shape,
+                    file
+                )
+
+                continue
+
+
+            # tubelet=5 check
+            if x.shape[0] != 576:
+
+                print(
+                    "Unexpected token count:",
                     x.shape,
                     file
                 )
@@ -98,14 +107,27 @@ def load_layer_features(folder, layer):
 
         else:
 
-            # expected:
-            # [1152,768]
-
             x = x.squeeze()
 
             if x.ndim != 2:
 
-                print("Invalid block shape:", x.shape, file)
+                print(
+                    "Invalid block shape:",
+                    x.shape,
+                    file
+                )
+
+                continue
+
+
+            # tubelet=5 check
+            if x.shape[0] != 576:
+
+                print(
+                    "Unexpected token count:",
+                    x.shape,
+                    file
+                )
 
                 continue
 

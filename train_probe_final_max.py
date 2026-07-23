@@ -1,5 +1,6 @@
 import os
 import random
+import time
 import numpy as np
 
 import torch
@@ -37,6 +38,7 @@ EPOCHS = 50
 # SWEEP CONFIG
 # =====================================================
 
+
 sweep_config = {
     "method": "bayes",
     "metric": {"name": "val_loss", "goal": "minimize"},
@@ -50,7 +52,6 @@ sweep_config = {
         "batch_size": {"values": [16, 32, 64]},
         "beta1": {"values": [0.9, 0.95]},
         "beta2": {"values": [0.99, 0.999]},
-        "num_heads": {"values": [4, 8, 16]},
         "dropout": {"values": [0.0, 0.1, 0.2]},
         "early_stopping_patience": {"value": 10},
     },
@@ -91,79 +92,59 @@ class CachedFeatureDataset(Dataset):
 
         print("Labels:", self.labels.shape)
 
-        assert len(self.features.shape) == 3, "Expected [N,T,D] token features"
-
-        print(
-            "Tokens per sample:",
-            self.features.shape[1]
-        )
-
-        assert self.features.shape[1] == 576, \
-            f"Expected 576 tokens for tubelet=5, got {self.features.shape[1]}"
+        # Safety check
+        assert (
+            len(self.features.shape) == 3
+        ), "Max pooling requires features of shape [N,T,D]"
 
     def __len__(self):
 
         return len(self.labels)
 
-    def __getitem__(self, index):
+    def __getitem__(self, i):
 
-        return (self.features[index], self.labels[index])
+        return (self.features[i], self.labels[i])
 
 
 # =====================================================
-# ATTENTION POOLING PROBE
+# MAX POOLING PROBE
 # =====================================================
 
 
-class AttentionProbe(nn.Module):
-    def __init__(self, input_dim, num_heads, dropout):
+class MaxPoolProbe(nn.Module):
+
+    def __init__(self, input_dim, dropout):
 
         super().__init__()
 
-        # Learnable query token
-
-        self.query = nn.Parameter(torch.randn(1, 1, input_dim))
-
-        self.norm1 = nn.LayerNorm(input_dim)
-
-        self.attention = nn.MultiheadAttention(
-            embed_dim=input_dim, num_heads=num_heads, batch_first=True
-        )
-
-        self.norm2 = nn.LayerNorm(input_dim)
+        self.norm = nn.LayerNorm(input_dim)
 
         self.dropout = nn.Dropout(dropout)
 
-        self.classifier = nn.Linear(input_dim, 2)
-
-    def forward(self, x, return_attention=False):
-
-        # x:
-        # [B,1152,768]
-
-        B = x.size(0)
-
-        q = self.query.expand(B, -1, -1)
-
-        x = self.norm1(x)
-
-        attn_out, attn_weights = self.attention(
-            q, x, x, need_weights=return_attention, average_attn_weights=False
+        self.classifier = nn.Linear(
+            input_dim,
+            2
         )
 
-        # [B,1,768]
+    def forward(self, x):
 
-        x = attn_out.squeeze(1)
+        # x
+        # [B,1152,768]
 
-        x = self.norm2(x)
+        x = self.norm(x)
+
+        # Max over all tokens
+        x, _ = torch.max(
+            x,
+            dim=1
+        )
+
+        # x
+        # [B,768]
 
         x = self.dropout(x)
 
         logits = self.classifier(x)
-
-        if return_attention:
-
-            return logits, attn_weights
 
         return logits
 
@@ -189,13 +170,13 @@ def get_device():
 
 
 # =====================================================
-# TRAIN
+# TRAINING
 # =====================================================
 
 
 def train():
 
-    wandb.init(project="tb5-vjepa-final-attention-probe-weights")
+    wandb.init(project="vjepa-final-max-probe")
 
     config = wandb.config
 
@@ -215,13 +196,17 @@ def train():
 
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
 
-    input_dim = train_dataset[0][0].shape[-1]
+    # feature dimension
+
+    sample = train_dataset[0][0]
+    print("Sample feature:", sample.shape)
+    input_dim = sample.shape[-1]
 
     print("Embedding dimension:", input_dim)
 
-    model = AttentionProbe(input_dim, config.num_heads, config.dropout).to(device)
-
+    model = MaxPoolProbe(input_dim, config.dropout).to(device)
     print(model)
+    print("Parameters:", sum(p.numel() for p in model.parameters()))
 
     optimizer = optim.AdamW(
         model.parameters(),
@@ -238,10 +223,6 @@ def train():
 
     for epoch in range(EPOCHS):
 
-        # =====================
-        # TRAIN
-        # =====================
-
         model.train()
 
         train_loss = 0
@@ -257,8 +238,6 @@ def train():
             y = y.to(device)
 
             optimizer.zero_grad()
-
-            # only logits
 
             logits = model(x)
 
@@ -310,7 +289,7 @@ def train():
 
                 preds.extend(logits.argmax(1).cpu().numpy())
 
-                probs.extend(F.softmax(logits, dim=1)[:, 1].cpu().numpy())
+                probs.extend(F.softmax(logits, 1)[:, 1].cpu().numpy())
 
                 labels.extend(y.cpu().numpy())
 
@@ -318,26 +297,18 @@ def train():
 
         val_acc = accuracy_score(labels, preds) * 100
 
-        try:
-
-            auc = roc_auc_score(labels, probs)
-
-        except:
-
-            auc = 0.0
+        auc = roc_auc_score(labels, probs)
 
         print(
             f"""
 Epoch {epoch+1}
 
-Train Loss : {train_loss:.4f}
-Train Acc  : {train_acc:.2f}
+Train Loss: {train_loss:.4f}
+Train Acc : {train_acc:.2f}
 
-Val Loss   : {val_loss:.4f}
-Val Acc    : {val_acc:.2f}
-
-AUC        : {auc:.4f}
-
+Val Loss  : {val_loss:.4f}
+Val Acc   : {val_acc:.2f}
+AUC       : {auc:.4f}
 """
         )
 
@@ -358,35 +329,12 @@ AUC        : {auc:.4f}
 
             patience_counter = 0
 
-            checkpoint = {
+            torch.save(
+                model.state_dict(),
+                f"{CHECKPOINT_DIR}/best_final_maxpool.pt"
+            )
 
-                "model": model.state_dict(),
-
-                "config": {
-
-                    "learning_rate": config.learning_rate,
-                    "weight_decay": config.weight_decay,
-                    "batch_size": config.batch_size,
-                    "beta1": config.beta1,
-                    "beta2": config.beta2,
-                    "num_heads": config.num_heads,
-                    "dropout": config.dropout,
-
-                },
-
-                "vjepa_config": {
-
-                    "tubelet_size": 5,
-                    "num_frames": 5,
-                    "grid_size": (24,24)
-
-                }
-
-            }
-
-            torch.save(checkpoint, f"{CHECKPOINT_DIR}/best_final_attention.pt")
-
-            print("Saved best checkpoint")
+            print("Saved best model")
 
         else:
 
@@ -402,12 +350,12 @@ AUC        : {auc:.4f}
 
 
 # =====================================================
-# RUN SWEEP
+# RUN
 # =====================================================
 
 
 if __name__ == "__main__":
 
-    sweep_id = wandb.sweep(sweep_config, project="tb5-vjepa-final-attention-probe-weights")
+    sweep_id = wandb.sweep(sweep_config, project="vjepa-final-max-probe")
 
     wandb.agent(sweep_id, function=train, count=20)

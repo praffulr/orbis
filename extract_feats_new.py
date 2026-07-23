@@ -15,7 +15,7 @@ from src.models.vision_transformer import vit_base
 FRAME_ROOT = "frames"
 ANN_ROOT = "annotations"
 
-OUT_ROOT = "vjepa_features"
+OUT_ROOT = "vjepa_features_tb5"
 
 NORMAL_DIR = os.path.join(OUT_ROOT, "normal")
 
@@ -102,6 +102,85 @@ def load_model():
     state = {
         k.replace("module.", "").replace("backbone.", ""): v for k, v in state.items()
     }
+
+
+    # =====================================================
+    # ADAPT TUBELET SIZE
+    # =====================================================
+
+    old_weight = state["patch_embed.proj.weight"]
+
+    print(
+        "Original patch embedding:",
+        old_weight.shape
+    )
+
+
+    TARGET_TUBELET = 5
+
+
+    if old_weight.shape[2] != TARGET_TUBELET:
+
+        print("Interpolating temporal kernel")
+
+        out_c, in_c, old_t, h, w = old_weight.shape
+
+
+        # Merge spatial dimensions
+        # [768,3,2,16,16]
+        # ->
+        # [768*3*16*16, 2]
+
+        weight = old_weight.permute(
+            0,1,3,4,2
+        ).reshape(
+            -1,
+            old_t
+        )
+
+
+        # interpolate temporal dimension
+
+        weight = torch.nn.functional.interpolate(
+            weight.unsqueeze(1),
+            size=TARGET_TUBELET,
+            mode="linear",
+            align_corners=False
+        )
+
+
+        # [N,1,5]
+        # ->
+        # [768,3,16,16,5]
+
+        weight = weight.squeeze(1).reshape(
+            out_c,
+            in_c,
+            h,
+            w,
+            TARGET_TUBELET
+        )
+
+
+        # ->
+        # [768,3,5,16,16]
+
+        new_weight = weight.permute(
+            0,
+            1,
+            4,
+            2,
+            3
+        )
+
+
+        state["patch_embed.proj.weight"] = new_weight
+
+
+    print(
+        "New patch embedding:",
+        state["patch_embed.proj.weight"].shape
+    )
 
     msg = model.load_state_dict(state, strict=False)
 
