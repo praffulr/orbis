@@ -22,8 +22,8 @@ import wandb
 LAYER = "final"
 
 
-TRAIN_FILE = f"./cached_features/train_{LAYER}.pt"
-VAL_FILE = f"./cached_features/val_{LAYER}.pt"
+TRAIN_FILE = f"./cached_features_tb5/train_{LAYER}.pt"
+VAL_FILE = f"./cached_features_tb5/val_{LAYER}.pt"
 
 
 CHECKPOINT_DIR = "checkpoints"
@@ -176,7 +176,7 @@ def get_device():
 
 def train():
 
-    wandb.init(project="vjepa-final-max-probe")
+    wandb.init(project="tb5-vjepa-final-max-probe")
 
     config = wandb.config
 
@@ -356,6 +356,6 @@ AUC       : {auc:.4f}
 
 if __name__ == "__main__":
 
-    sweep_id = wandb.sweep(sweep_config, project="vjepa-final-max-probe")
+    sweep_id = wandb.sweep(sweep_config, project="tb5-vjepa-final-max-probe")
 
     wandb.agent(sweep_id, function=train, count=20)

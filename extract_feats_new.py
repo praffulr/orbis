@@ -4,6 +4,9 @@ import glob
 import torch
 import numpy as np
 from tqdm import tqdm
+from PIL import Image
+import torchvision.transforms as T
+
 
 from src.models.vision_transformer import vit_base
 
@@ -22,6 +25,7 @@ NORMAL_DIR = os.path.join(OUT_ROOT, "normal")
 ANOMALY_DIR = os.path.join(OUT_ROOT, "anomaly")
 
 
+
 os.makedirs(NORMAL_DIR, exist_ok=True)
 os.makedirs(ANOMALY_DIR, exist_ok=True)
 
@@ -35,6 +39,14 @@ NUM_FRAMES = 5
 FRAME_STRIDE = 2
 
 IMG_SIZE = 384
+
+# Proper preprocessing: Resize shortest edge, CenterCrop, and ImageNet Normalize
+preprocess = T.Compose([
+    T.Resize(IMG_SIZE, interpolation=T.InterpolationMode.BICUBIC),
+    T.CenterCrop(IMG_SIZE),
+    T.ToTensor(),
+    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
 
 
 RAW_WINDOW = (NUM_FRAMES * FRAME_STRIDE) - 1
@@ -272,35 +284,24 @@ def sample_indices(start, total_frames):
 
 def frames_to_tensor(paths):
 
-    import cv2
 
     imgs = []
 
     for p in paths:
 
-        img = cv2.imread(p)
-
-        if img is None:
-
-            raise RuntimeError(f"Cannot read {p}")
-
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+        img = Image.open(p).convert("RGB")
+        img = preprocess(img)
 
         imgs.append(img)
 
-    x = np.stack(imgs)
+    # Stack into [T, C, H, W] tensor
+    x = torch.stack(imgs)
 
-    x = torch.from_numpy(x).float()
-
-    x /= 255.0
-
-    # T,H,W,C
+    # T,C,H,W
     # ->
     # C,T,H,W
 
-    x = x.permute(3, 0, 1, 2)
+    x = x.permute(1, 0, 2, 3)
 
     return x
 

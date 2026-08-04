@@ -18,11 +18,9 @@ import wandb
 # CONFIG
 # =====================================================
 
-LAYER = "final"
 
-
-TRAIN_FILE = f"./cached_features/train_{LAYER}.pt"
-VAL_FILE = f"./cached_features/val_{LAYER}.pt"
+TRAIN_FILE = "./cached_features/train_vjepa_final_mc.pt"
+VAL_FILE   = "./cached_features/val_vjepa_final_mc.pt"
 
 
 CHECKPOINT_DIR = "checkpoints"
@@ -30,7 +28,7 @@ CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
-EPOCHS = 50
+EPOCHS = 30
 
 
 # =====================================================
@@ -138,9 +136,6 @@ class AttentionProbe(nn.Module):
 
     def forward(self, x, return_attention=False):
 
-        # x:
-        # [B,1152,768]
-
         B = x.size(0)
 
         q = self.query.expand(B, -1, -1)
@@ -150,8 +145,6 @@ class AttentionProbe(nn.Module):
         attn_out, attn_weights = self.attention(
             q, x, x, need_weights=return_attention, average_attn_weights=False
         )
-
-        # [B,1,768]
 
         x = attn_out.squeeze(1)
 
@@ -195,7 +188,7 @@ def get_device():
 
 def train():
 
-    wandb.init(project="tb5-vjepa-final-attention-probe-weights")
+    wandb.init(project="vjepa-final-attention-probe-binary")
 
     config = wandb.config
 
@@ -384,7 +377,7 @@ AUC        : {auc:.4f}
 
             }
 
-            torch.save(checkpoint, f"{CHECKPOINT_DIR}/best_final_attention.pt")
+            torch.save(checkpoint, f"{CHECKPOINT_DIR}/best_vjepa_attention.pt")
 
             print("Saved best checkpoint")
 
@@ -408,6 +401,6 @@ AUC        : {auc:.4f}
 
 if __name__ == "__main__":
 
-    sweep_id = wandb.sweep(sweep_config, project="tb5-vjepa-final-attention-probe-weights")
+    sweep_id = wandb.sweep(sweep_config, project="vjepa-final-attention-probe-binary")
 
-    wandb.agent(sweep_id, function=train, count=20)
+    wandb.agent(sweep_id, function=train, count=10)

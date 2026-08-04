@@ -12,7 +12,7 @@ ATTENTION_FILE = "best_val_attention_weights_tb5.pt"
 
 FRAME_ROOT = "frames"
 
-OUTPUT_DIR = "attention_heatmaps_tb5_5th"
+OUTPUT_DIR = "attention_heatmaps_tb5_all_frames"
 
 GRID_H = 24
 GRID_W = 24

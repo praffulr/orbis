@@ -12,19 +12,15 @@ from sklearn.model_selection import train_test_split
 
 FEATURE_ROOT = "vjepa_features_tb5"
 
-
 NORMAL_DIR = os.path.join(FEATURE_ROOT, "normal")
-
 
 ANOMALY_DIR = os.path.join(FEATURE_ROOT, "anomaly")
 
 
-# LAYERS = ["final", "block_3", "block_6", "block_9", "block_12"]
-
 LAYERS = ["final"]
 
 
-OUTPUT_DIR = "cached_features"
+OUTPUT_DIR = "cached_features_tb5"
 
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -36,7 +32,7 @@ SEED = 42
 
 
 # ============================================================
-# LOAD SINGLE LAYER
+# LOAD FEATURES
 # ============================================================
 
 
@@ -44,6 +40,9 @@ def load_layer_features(folder, layer):
 
     features = []
     labels = []
+
+    videos = []
+    frame_indices = []
 
     files = sorted(glob.glob(os.path.join(folder, "*.pt")))
 
@@ -66,70 +65,39 @@ def load_layer_features(folder, layer):
         feature_dict = sample["feature"]
 
         if layer not in feature_dict:
-
             continue
 
         x = feature_dict[layer]
 
-        # =================================================
-        # FINAL REPRESENTATION
-        # =================================================
+        # remove batch dimension
 
-        if layer=="final":
+        x = x.squeeze()
 
-            x = x.squeeze()
+        if x.ndim != 2:
 
-            if x.ndim != 2:
+            print("Invalid feature:", x.shape, file)
 
-                print(
-                    "Invalid final token shape:",
-                    x.shape,
-                    file
-                )
+            continue
 
-                continue
+        # =====================================================
+        # Tubelet=5 expected
+        #
+        # 5 frames
+        # tubelet size = 5
+        #
+        # temporal tokens = 1
+        #
+        # spatial = 24*24
+        #
+        # total tokens = 576
+        #
+        # =====================================================
 
+        if x.shape[0] != 576:
 
-            # tubelet=5 check
-            if x.shape[0] != 576:
+            print("Unexpected tokens:", x.shape, file)
 
-                print(
-                    "Unexpected token count:",
-                    x.shape,
-                    file
-                )
-
-                continue
-
-        # =================================================
-        # BLOCK REPRESENTATION
-        # =================================================
-
-        else:
-
-            x = x.squeeze()
-
-            if x.ndim != 2:
-
-                print(
-                    "Invalid block shape:",
-                    x.shape,
-                    file
-                )
-
-                continue
-
-
-            # tubelet=5 check
-            if x.shape[0] != 576:
-
-                print(
-                    "Unexpected token count:",
-                    x.shape,
-                    file
-                )
-
-                continue
+            continue
 
         shapes.add(tuple(x.shape))
 
@@ -137,17 +105,21 @@ def load_layer_features(folder, layer):
 
         labels.append(label)
 
+        videos.append(sample["video"])
+
+        frame_indices.append(sample["indices"])
+
         valid += 1
 
     print("Valid samples:", valid)
 
-    print("Feature shapes:", shapes)
+    print("Shapes:", shapes)
 
     if len(shapes) != 1:
 
-        raise RuntimeError(f"Inconsistent shapes detected for {layer}: {shapes}")
+        raise RuntimeError(f"Inconsistent shapes {shapes}")
 
-    return features, labels
+    return (features, labels, videos, frame_indices)
 
 
 # ============================================================
@@ -157,41 +129,55 @@ def load_layer_features(folder, layer):
 
 def build_dataset(layer):
 
-    print("\n\n================================")
-    print("Processing layer:", layer)
-    print("================================")
+    print("\n==============================")
+    print("Layer:", layer)
+    print("==============================")
 
-    normal_features, normal_labels = load_layer_features(NORMAL_DIR, layer)
+    (normal_x, normal_y, normal_videos, normal_indices) = load_layer_features(
+        NORMAL_DIR, layer
+    )
 
-    anomaly_features, anomaly_labels = load_layer_features(ANOMALY_DIR, layer)
+    (anomaly_x, anomaly_y, anomaly_videos, anomaly_indices) = load_layer_features(
+        ANOMALY_DIR, layer
+    )
 
-    X = normal_features + anomaly_features
+    X = normal_x + anomaly_x
 
-    y = normal_labels + anomaly_labels
+    y = normal_y + anomaly_y
+
+    videos = normal_videos + anomaly_videos
+
+    indices = normal_indices + anomaly_indices
 
     X = torch.stack(X)
 
     y = torch.tensor(y, dtype=torch.long)
 
-    print("\nComplete dataset")
+    print("\nDataset")
 
     print("Features:", X.shape)
 
     print("Labels:", y.shape)
+
+    print("Samples:", len(videos))
 
     print("Normal:", (y == 0).sum().item())
 
     print("Anomaly:", (y == 1).sum().item())
 
     # =====================================================
-    # TRAIN VALIDATION SPLIT
+    # SPLIT
     # =====================================================
 
-    indices = np.arange(len(y))
+    idx = np.arange(len(y))
 
     train_idx, val_idx = train_test_split(
-        indices, test_size=TEST_SIZE, random_state=SEED, stratify=y.numpy()
+        idx, test_size=TEST_SIZE, random_state=SEED, stratify=y.numpy()
     )
+
+    def select(lst, ids):
+
+        return [lst[i] for i in ids]
 
     train_x = X[train_idx]
 
@@ -200,6 +186,13 @@ def build_dataset(layer):
     val_x = X[val_idx]
 
     val_y = y[val_idx]
+
+    train_meta = {
+        "videos": select(videos, train_idx),
+        "indices": select(indices, train_idx),
+    }
+
+    val_meta = {"videos": select(videos, val_idx), "indices": select(indices, val_idx)}
 
     print("\nSplit")
 
@@ -219,21 +212,26 @@ def build_dataset(layer):
         {
             "features": train_x,
             "labels": train_y,
+            "videos": train_meta["videos"],
+            "indices": train_meta["indices"],
             "layer": layer,
-            "num_samples": len(train_y),
         },
         train_path,
     )
 
     torch.save(
-        {"features": val_x, "labels": val_y, "layer": layer, "num_samples": len(val_y)},
+        {
+            "features": val_x,
+            "labels": val_y,
+            "videos": val_meta["videos"],
+            "indices": val_meta["indices"],
+            "layer": layer,
+        },
         val_path,
     )
 
-    print("\nSaved")
-
+    print("\nSaved:")
     print(train_path)
-
     print(val_path)
 
 
@@ -248,9 +246,7 @@ def main():
 
         build_dataset(layer)
 
-    print("\n================================")
-    print("ALL PROBE DATASETS CREATED")
-    print("================================")
+    print("\nDONE")
 
 
 if __name__ == "__main__":

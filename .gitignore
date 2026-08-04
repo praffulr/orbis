@@ -1,6 +1,10 @@
+visualization
 annotations
 .venv
+__pycache__
 *.pyc
+.pkl
+*.npy
 .vscode/
 .*.swp
 .github
@@ -28,7 +32,6 @@ run_pretrain.py
 
 *.egg-info/
 *.ipynb_checkpoints/
-
 traces/
 third_party/*
 
@@ -40,3 +43,35 @@ app/vjepa_droid_v2/local/
 app/vjepa_droid_v3/local/
 app/vjepa_droid_v4/local/
 configs/local
+
+vjepa_dota
+vjepa_attention_heatmaps
+visualization/
+DOTA_training
+attention_clean_tb5
+attention_heatmaps_refined_new
+attention_heatmaps_tb5_refined
+attention_clean_tb5
+attention_heatmaps_refined_new
+attention_heatmaps_tb5_refined
+attention_heatmaps_tb5_refined_relative
+attention_heatmaps_tb5_temporal
+attention_visualizations_mc
+attention_viz_clean_mc
+cached_features_tb5
+cached_features_tb5_new
+checkpoints_maxpool
+build_probe_dataset.py
+build_vjepa_mc_cache.py
+train_linear_probe_attn.py
+train_all_blocks.py
+train_linear_probe_max.py
+train_probe_attn_mc.py
+visualize_heatmap.py
+visualize_feats.py
+visualize_difference_heatmaps.py
+visualize_attributions.py
+visualize_activations.py
+visualize_attention_mc.py
+visualize_attention_mc_new.py
+visualize_attention_heatmap.py
