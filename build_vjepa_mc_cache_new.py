@@ -9,9 +9,7 @@ import numpy as np
 import torch
 
 
-# ============================================================
 # CONFIG
-# ============================================================
 
 FEATURE_ROOT = "vjepa_features_tb5"
 
@@ -38,9 +36,7 @@ np.random.seed(SEED)
 torch.manual_seed(SEED)
 
 
-# ============================================================
 # DoTA CLASS DEFINITIONS
-# ============================================================
 
 DOTA_CLASS_NAMES = {
     0: "normal",
@@ -57,9 +53,7 @@ DOTA_CLASS_NAMES = {
 
 NUM_CLASSES = len(DOTA_CLASS_NAMES)
 
-# ============================================================
 # CLASS MAPPING
-# ============================================================
 
 
 def build_class_mapping():
@@ -94,9 +88,7 @@ def build_class_mapping():
     return class_mapping
 
 
-# ============================================================
 # LOAD ALL ANNOTATIONS
-# ============================================================
 
 
 def load_annotations():
@@ -169,9 +161,7 @@ def load_annotations():
     return annotation_cache
 
 
-# ============================================================
 # DATASET STATISTICS
-# ============================================================
 
 
 def print_dataset_statistics(annotation_cache):
@@ -193,9 +183,7 @@ def print_dataset_statistics(annotation_cache):
     print("-" * 50)
 
 
-# ============================================================
 # FEATURE EXTRACTION
-# ============================================================
 
 
 def extract_feature(data):
@@ -264,9 +252,7 @@ def extract_feature(data):
     return feature
 
 
-# ============================================================
 # PROCESS ONE FEATURE FILE
-# ============================================================
 
 
 def process_feature_file(
@@ -385,9 +371,7 @@ def process_feature_file(
     }
 
 
-# ============================================================
 # BUILD DATASET
-# ============================================================
 
 
 def build_dataset(
@@ -522,9 +506,7 @@ def build_dataset(
     return dataset
 
 
-# ============================================================
 # VIDEO-LEVEL STRATIFIED TRAIN / VAL SPLIT
-# ============================================================
 
 
 def stratified_split(
@@ -646,9 +628,7 @@ def stratified_split(
     return train_files, val_files
 
 
-# ============================================================
 # DATASET SANITY CHECKS
-# ============================================================
 
 
 def check_video_leakage(
@@ -702,9 +682,7 @@ def check_video_leakage(
     print("-" * 60)
 
 
-# ============================================================
 # FINAL DATASET STATISTICS
-# ============================================================
 
 
 def print_cache_statistics(dataset, split):
@@ -732,9 +710,7 @@ def print_cache_statistics(dataset, split):
     print("=" * 60)
 
 
-# ============================================================
 # MAIN
-# ============================================================
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ annotations
 .venv
 __pycache__
 *.pyc
+*.pt
 .pkl
 *.npy
 .vscode/
@@ -75,3 +76,6 @@ visualize_activations.py
 visualize_attention_mc.py
 visualize_attention_mc_new.py
 visualize_attention_heatmap.py
+heatmaps_binary1
+heatmaps_binary112211
+heatmaps_binary

@@ -11,9 +11,7 @@ import torchvision.transforms as T
 from src.models.vision_transformer import vit_base
 
 
-# ============================================================
 # CONFIG
-# ============================================================
 
 FRAME_ROOT = "frames"
 ANN_ROOT = "annotations"
@@ -30,9 +28,7 @@ os.makedirs(NORMAL_DIR, exist_ok=True)
 os.makedirs(ANOMALY_DIR, exist_ok=True)
 
 
-# ============================================================
 # V-JEPA SETTINGS
-# ============================================================
 
 NUM_FRAMES = 5
 
@@ -65,9 +61,7 @@ print("Effective window:", RAW_WINDOW)
 print("=" * 60)
 
 
-# ============================================================
 # DEVICE
-# ============================================================
 
 
 if torch.cuda.is_available():
@@ -90,9 +84,7 @@ else:
 print("Device:", DEVICE)
 
 
-# ============================================================
 # LOAD MODEL
-# ============================================================
 
 
 def load_model():
@@ -207,9 +199,7 @@ def load_model():
     return model
 
 
-# ============================================================
 # ACTIVATION CACHE
-# ============================================================
 
 
 class ActivationCache:
@@ -244,9 +234,7 @@ class ActivationCache:
             h.remove()
 
 
-# ============================================================
 # FRAME UTILITIES
-# ============================================================
 
 
 def get_frames(video_id):
@@ -261,9 +249,7 @@ def make_clip(frames, indices):
     return [frames[i] for i in indices]
 
 
-# ============================================================
 # SAMPLING
-# ============================================================
 
 
 def sample_indices(start, total_frames):
@@ -277,9 +263,7 @@ def sample_indices(start, total_frames):
     return indices
 
 
-# ============================================================
 # IMAGE PREPROCESS
-# ============================================================
 
 
 def frames_to_tensor(paths):
@@ -306,9 +290,7 @@ def frames_to_tensor(paths):
     return x
 
 
-# ============================================================
 # FEATURE EXTRACTION
-# ============================================================
 
 
 @torch.no_grad()
@@ -354,9 +336,7 @@ def extract_feature(model, cache, clip):
     return result
 
 
-# ============================================================
 # PROCESS VIDEO
-# ============================================================
 
 
 def process_video(model, cache, vid):
@@ -454,9 +434,7 @@ def process_video(model, cache, vid):
         )
 
 
-# ============================================================
 # MAIN
-# ============================================================
 
 
 def main():

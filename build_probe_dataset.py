@@ -6,9 +6,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 
-# ============================================================
 # CONFIG
-# ============================================================
 
 FEATURE_ROOT = "vjepa_features_tb5"
 
@@ -29,12 +27,6 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 TEST_SIZE = 0.20
 
 SEED = 42
-
-
-# ============================================================
-# LOAD FEATURES
-# ============================================================
-
 
 def load_layer_features(folder, layer):
 
@@ -121,12 +113,6 @@ def load_layer_features(folder, layer):
 
     return (features, labels, videos, frame_indices)
 
-
-# ============================================================
-# BUILD DATASET
-# ============================================================
-
-
 def build_dataset(layer):
 
     print("\n==============================")
@@ -165,10 +151,6 @@ def build_dataset(layer):
 
     print("Anomaly:", (y == 1).sum().item())
 
-    # =====================================================
-    # SPLIT
-    # =====================================================
-
     idx = np.arange(len(y))
 
     train_idx, val_idx = train_test_split(
@@ -200,10 +182,6 @@ def build_dataset(layer):
 
     print("Val:", val_x.shape)
 
-    # =====================================================
-    # SAVE
-    # =====================================================
-
     train_path = os.path.join(OUTPUT_DIR, f"train_{layer}.pt")
 
     val_path = os.path.join(OUTPUT_DIR, f"val_{layer}.pt")
@@ -233,12 +211,6 @@ def build_dataset(layer):
     print("\nSaved:")
     print(train_path)
     print(val_path)
-
-
-# ============================================================
-# MAIN
-# ============================================================
-
 
 def main():
 

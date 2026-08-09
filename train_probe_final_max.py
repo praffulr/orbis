@@ -1,6 +1,5 @@
 import os
 import random
-import time
 import numpy as np
 
 import torch
@@ -19,11 +18,9 @@ import wandb
 # CONFIG
 # =====================================================
 
-LAYER = "final"
 
-
-TRAIN_FILE = f"./cached_features_tb5/train_{LAYER}.pt"
-VAL_FILE = f"./cached_features_tb5/val_{LAYER}.pt"
+TRAIN_FILE = "./cached_features/train_vjepa_final_mc.pt"
+VAL_FILE   = "./cached_features/val_vjepa_final_mc.pt"
 
 
 CHECKPOINT_DIR = "checkpoints"
@@ -31,13 +28,12 @@ CHECKPOINT_DIR = "checkpoints"
 os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
-EPOCHS = 50
+EPOCHS = 30
 
 
 # =====================================================
 # SWEEP CONFIG
 # =====================================================
-
 
 sweep_config = {
     "method": "bayes",
@@ -92,18 +88,23 @@ class CachedFeatureDataset(Dataset):
 
         print("Labels:", self.labels.shape)
 
-        # Safety check
-        assert (
-            len(self.features.shape) == 3
-        ), "Max pooling requires features of shape [N,T,D]"
+        assert len(self.features.shape) == 3, "Expected [N,T,D] token features"
+
+        print(
+            "Tokens per sample:",
+            self.features.shape[1]
+        )
+
+        assert self.features.shape[1] == 576, \
+            f"Expected 576 tokens for tubelet=5, got {self.features.shape[1]}"
 
     def __len__(self):
 
         return len(self.labels)
 
-    def __getitem__(self, i):
+    def __getitem__(self, index):
 
-        return (self.features[i], self.labels[i])
+        return (self.features[index], self.labels[index])
 
 
 # =====================================================
@@ -129,18 +130,18 @@ class MaxPoolProbe(nn.Module):
     def forward(self, x):
 
         # x
-        # [B,1152,768]
+        # [B, 576, 768]
 
         x = self.norm(x)
 
-        # Max over all tokens
+        # Max over all tokens (dim=1)
         x, _ = torch.max(
             x,
             dim=1
         )
 
         # x
-        # [B,768]
+        # [B, 768]
 
         x = self.dropout(x)
 
@@ -176,7 +177,7 @@ def get_device():
 
 def train():
 
-    wandb.init(project="tb5-vjepa-final-max-probe")
+    wandb.init(project="vjepa-final-maxpool-probe-binary11")
 
     config = wandb.config
 
@@ -196,15 +197,12 @@ def train():
 
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False)
 
-    # feature dimension
-
-    sample = train_dataset[0][0]
-    print("Sample feature:", sample.shape)
-    input_dim = sample.shape[-1]
+    input_dim = train_dataset[0][0].shape[-1]
 
     print("Embedding dimension:", input_dim)
 
     model = MaxPoolProbe(input_dim, config.dropout).to(device)
+
     print(model)
     print("Parameters:", sum(p.numel() for p in model.parameters()))
 
@@ -222,6 +220,10 @@ def train():
     patience_counter = 0
 
     for epoch in range(EPOCHS):
+
+        # =====================
+        # TRAIN
+        # =====================
 
         model.train()
 
@@ -289,7 +291,7 @@ def train():
 
                 preds.extend(logits.argmax(1).cpu().numpy())
 
-                probs.extend(F.softmax(logits, 1)[:, 1].cpu().numpy())
+                probs.extend(F.softmax(logits, dim=1)[:, 1].cpu().numpy())
 
                 labels.extend(y.cpu().numpy())
 
@@ -297,18 +299,26 @@ def train():
 
         val_acc = accuracy_score(labels, preds) * 100
 
-        auc = roc_auc_score(labels, probs)
+        try:
+
+            auc = roc_auc_score(labels, probs)
+
+        except:
+
+            auc = 0.0
 
         print(
             f"""
 Epoch {epoch+1}
 
-Train Loss: {train_loss:.4f}
-Train Acc : {train_acc:.2f}
+Train Loss : {train_loss:.4f}
+Train Acc  : {train_acc:.2f}
 
-Val Loss  : {val_loss:.4f}
-Val Acc   : {val_acc:.2f}
-AUC       : {auc:.4f}
+Val Loss   : {val_loss:.4f}
+Val Acc    : {val_acc:.2f}
+
+AUC        : {auc:.4f}
+
 """
         )
 
@@ -329,12 +339,34 @@ AUC       : {auc:.4f}
 
             patience_counter = 0
 
-            torch.save(
-                model.state_dict(),
-                f"{CHECKPOINT_DIR}/best_final_maxpool.pt"
-            )
+            checkpoint = {
 
-            print("Saved best model")
+                "model": model.state_dict(),
+
+                "config": {
+
+                    "learning_rate": config.learning_rate,
+                    "weight_decay": config.weight_decay,
+                    "batch_size": config.batch_size,
+                    "beta1": config.beta1,
+                    "beta2": config.beta2,
+                    "dropout": config.dropout,
+
+                },
+
+                "vjepa_config": {
+
+                    "tubelet_size": 5,
+                    "num_frames": 5,
+                    "grid_size": (24,24)
+
+                }
+
+            }
+
+            torch.save(checkpoint, f"{CHECKPOINT_DIR}/best_vjepa_maxpool.pt")
+
+            print("Saved best checkpoint")
 
         else:
 
@@ -350,12 +382,12 @@ AUC       : {auc:.4f}
 
 
 # =====================================================
-# RUN
+# RUN SWEEP
 # =====================================================
 
 
 if __name__ == "__main__":
 
-    sweep_id = wandb.sweep(sweep_config, project="tb5-vjepa-final-max-probe")
+    sweep_id = wandb.sweep(sweep_config, project="vjepa-final-maxpool-probe-binary11")
 
-    wandb.agent(sweep_id, function=train, count=20)
+    wandb.agent(sweep_id, function=train, count=10)
