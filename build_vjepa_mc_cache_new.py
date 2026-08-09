@@ -125,9 +125,9 @@ def load_annotations():
 
         video_accident = None
 
-        # ------------------------------------------
+        
         # Parse frame annotations
-        # ------------------------------------------
+        
 
         for item in ann["labels"]:
 
@@ -140,9 +140,9 @@ def load_annotations():
             if accident_id > 0 and accident_id <= 9:
                 video_accident = accident_id
 
-        # ------------------------------------------
+        
         # Skip unknown accident videos
-        # ------------------------------------------
+        
 
         if video_accident is None:
 
@@ -205,9 +205,9 @@ def extract_feature(data):
 
     feature = data["feature"]
 
-    # --------------------------------------------------------
+    
     # New cache format
-    # --------------------------------------------------------
+    
 
     if isinstance(feature, dict):
 
@@ -276,7 +276,7 @@ def process_feature_file(
 
     Following the Orbis protocol:
 
-    ----------------------------------------
+    ------------
 
     Normal clip
 
@@ -284,7 +284,7 @@ def process_feature_file(
         mc_label          = 0 (normal)
         source_mc_label   = accident type
 
-    ----------------------------------------
+    ------------
 
     Anomaly clip
 
@@ -292,7 +292,7 @@ def process_feature_file(
         mc_label          = accident type
         source_mc_label   = accident type
 
-    ----------------------------------------
+    ------------
     """
 
     data = torch.load(
@@ -308,9 +308,9 @@ def process_feature_file(
 
     binary_label = int(data["label"])
 
-    # --------------------------------------------------------
+    
     # Basic validation
-    # --------------------------------------------------------
+    
 
     if len(indices) != 5:
 
@@ -324,17 +324,17 @@ def process_feature_file(
 
     video_accident = annotation["video_accident"]
 
-    # --------------------------------------------------------
+    
     # Ignore unknown classes
-    # --------------------------------------------------------
+    
 
     if video_accident > 9:
 
         return None
 
-    # --------------------------------------------------------
+    
     # Labels following Orbis
-    # --------------------------------------------------------
+    
 
     if binary_label == 0:
 
@@ -475,9 +475,8 @@ def build_dataset(
 
     }
 
-    # --------------------------------------------------------
+    
     # Print summary
-    # --------------------------------------------------------
 
     print("\nDataset summary")
 
@@ -523,9 +522,9 @@ def stratified_split(
     ✓ Roughly preserves multiclass distribution
     """
 
-    # --------------------------------------------------------
+    
     # Group files by video
-    # --------------------------------------------------------
+    
 
     video_groups = defaultdict(list)
 
@@ -552,9 +551,9 @@ def stratified_split(
 
         video_class[video] = cls
 
-    # --------------------------------------------------------
+    
     # Organize videos by class
-    # --------------------------------------------------------
+    
 
     class_to_videos = defaultdict(list)
 
@@ -574,9 +573,9 @@ def stratified_split(
             f"{len(class_to_videos[cls])} videos"
         )
 
-    # --------------------------------------------------------
+    
     # Split videos
-    # --------------------------------------------------------
+    
 
     random.seed(SEED)
 
@@ -611,9 +610,9 @@ def stratified_split(
 
     random.shuffle(val_files)
 
-    # --------------------------------------------------------
+    
     # Statistics
-    # --------------------------------------------------------
+    
 
     print("\nSplit summary")
 
@@ -717,21 +716,21 @@ if __name__ == "__main__":
 
     print("\nBuilding V-JEPA Multi-Class Cache")
 
-    # --------------------------------------------------------
+    
     # Build mapping
-    # --------------------------------------------------------
+    
 
     class_mapping = build_class_mapping()
 
-    # --------------------------------------------------------
+    
     # Load annotations
-    # --------------------------------------------------------
+    
 
     annotation_cache = load_annotations()
 
-    # --------------------------------------------------------
+    
     # Collect feature files
-    # --------------------------------------------------------
+    
 
     feature_files = []
 
@@ -741,27 +740,27 @@ if __name__ == "__main__":
 
     print("\nTotal feature files:", len(feature_files))
 
-    # --------------------------------------------------------
+    
     # Split
-    # --------------------------------------------------------
+    
 
     train_files, val_files = stratified_split(
         feature_files,
         annotation_cache,
     )
 
-    # --------------------------------------------------------
+    
     # Check leakage
-    # --------------------------------------------------------
+    
 
     check_video_leakage(
         train_files,
         val_files,
     )
 
-    # --------------------------------------------------------
+    
     # Build datasets
-    # --------------------------------------------------------
+    
 
     print("\nBuilding training cache...")
 
@@ -779,17 +778,17 @@ if __name__ == "__main__":
         annotation_cache,
     )
 
-    # --------------------------------------------------------
+    
     # Statistics
-    # --------------------------------------------------------
+    
 
     print_cache_statistics(train_cache, "TRAIN")
 
     print_cache_statistics(val_cache, "VALIDATION")
 
-    # --------------------------------------------------------
+    
     # Save
-    # --------------------------------------------------------
+    
 
     torch.save(
         train_cache,

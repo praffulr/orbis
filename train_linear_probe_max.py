@@ -13,9 +13,9 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, roc_a
 
 import wandb
 
-# ============================================================
+
 # CONFIG
-# ============================================================
+
 
 LAYER = "block_12"
 TRAIN_FILE = f"./cached_features/train_{LAYER}.pt"
@@ -26,9 +26,9 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 EPOCHS = 50
 
-# ============================================================
+
 # W&B SWEEP CONFIG
-# ============================================================
+
 
 sweep_config = {
     "method": "bayes",
@@ -65,9 +65,9 @@ sweep_config = {
     }
 }
 
-# ============================================================
+
 # RANDOM SEED
-# ============================================================
+
 
 def seed_everything(seed=42):
     random.seed(seed)
@@ -78,9 +78,9 @@ def seed_everything(seed=42):
     if torch.backends.mps.is_available():
         torch.mps.manual_seed(seed)
 
-# ============================================================
+
 # DATASET
-# ============================================================
+
 
 class CachedFeatureDataset(Dataset):
     def __init__(self, cache_path):
@@ -98,9 +98,9 @@ class CachedFeatureDataset(Dataset):
     def __getitem__(self, idx):
         return self.features[idx], self.labels[idx]
 
-# ============================================================
+
 # MAX POOL PROBE
-# ============================================================
+
 
 class MaxPoolProbe(nn.Module):
     def __init__(self, input_dim=768, num_classes=2, dropout=0.0):
@@ -118,9 +118,9 @@ class MaxPoolProbe(nn.Module):
         logits = self.classifier(x)
         return logits
 
-# ============================================================
+
 # DEVICE
-# ============================================================
+
 
 def get_device():
     if torch.cuda.is_available():
@@ -130,9 +130,9 @@ def get_device():
         return torch.device("mps")
     return torch.device("cpu")
 
-# ============================================================
+
 # TRAINING FUNCTION
-# ============================================================
+
 
 def train_maxpool_probe():
     wandb.init()
@@ -194,9 +194,9 @@ def train_maxpool_probe():
     # Epoch Loop
     # --------------------------------------------------------
     for epoch in range(EPOCHS):
-        # =====================================================
+        
         # TRAIN
-        # =====================================================
+        
         model.train()
         total_loss = 0
         correct = 0
@@ -225,9 +225,9 @@ def train_maxpool_probe():
         train_acc = 100 * correct / total
         epoch_time = time.time() - start
 
-        # =====================================================
+        
         # VALIDATION
-        # =====================================================
+        
         model.eval()
         total_loss = 0
         all_labels = []
@@ -263,9 +263,9 @@ def train_maxpool_probe():
 
         cm = confusion_matrix(all_labels, all_preds)
 
-        # =====================================================
+        
         # PRINT
-        # =====================================================
+        
         print("\n" + "=" * 70)
         print(f"Epoch {epoch+1}/{EPOCHS}")
         print("=" * 70)
@@ -280,9 +280,9 @@ def train_maxpool_probe():
         print("\nConfusion Matrix")
         print(cm)
 
-        # =====================================================
+        
         # W&B LOGGING
-        # =====================================================
+        
         wandb.log({
             "epoch": epoch + 1,
             "train_loss": train_loss,
@@ -295,9 +295,9 @@ def train_maxpool_probe():
             "epoch_time": epoch_time,
         })
 
-        # =====================================================
+        
         # SAVE BEST & EARLY STOPPING
-        # =====================================================
+        
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
@@ -315,9 +315,9 @@ def train_maxpool_probe():
 
     wandb.finish()
 
-# ============================================================
+
 # MAIN
-# ============================================================
+
 if __name__ == "__main__":
     sweep_id = wandb.sweep(
         sweep_config,

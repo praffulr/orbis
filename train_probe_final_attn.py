@@ -14,9 +14,9 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 import wandb
 
 
-# =====================================================
+
 # CONFIG
-# =====================================================
+
 
 
 TRAIN_FILE = "./cached_features/train_vjepa_final_mc.pt"
@@ -31,9 +31,9 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 EPOCHS = 30
 
 
-# =====================================================
+
 # SWEEP CONFIG
-# =====================================================
+
 
 sweep_config = {
     "method": "bayes",
@@ -55,9 +55,9 @@ sweep_config = {
 }
 
 
-# =====================================================
+
 # SEED
-# =====================================================
+
 
 
 def seed_everything(seed=42):
@@ -69,9 +69,9 @@ def seed_everything(seed=42):
     torch.manual_seed(seed)
 
 
-# =====================================================
+
 # DATASET
-# =====================================================
+
 
 
 class CachedFeatureDataset(Dataset):
@@ -108,9 +108,9 @@ class CachedFeatureDataset(Dataset):
         return (self.features[index], self.labels[index])
 
 
-# =====================================================
+
 # ATTENTION POOLING PROBE
-# =====================================================
+
 
 
 class AttentionProbe(nn.Module):
@@ -161,9 +161,9 @@ class AttentionProbe(nn.Module):
         return logits
 
 
-# =====================================================
+
 # DEVICE
-# =====================================================
+
 
 
 def get_device():
@@ -181,9 +181,9 @@ def get_device():
     return torch.device("cpu")
 
 
-# =====================================================
+
 # TRAIN
-# =====================================================
+
 
 
 def train():
@@ -394,9 +394,9 @@ AUC        : {auc:.4f}
     wandb.finish()
 
 
-# =====================================================
+
 # RUN SWEEP
-# =====================================================
+
 
 
 if __name__ == "__main__":
