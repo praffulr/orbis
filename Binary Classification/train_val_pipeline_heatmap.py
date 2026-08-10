@@ -29,15 +29,11 @@ print("Using device:", DEVICE)
 
 # DATASET
 
-class CachedDataset(Dataset):
 
+class CachedDataset(Dataset):
     def __init__(self, path):
 
-        data = torch.load(
-            path,
-            map_location="cpu",
-            weights_only=False
-        )
+        data = torch.load(path, map_location="cpu", weights_only=False)
 
         self.features = data["features"].float()
 
@@ -47,13 +43,11 @@ class CachedDataset(Dataset):
 
         self.frame_ids = data["target_frame_ids"]
 
-
         print("\nDataset Loaded")
         print("---------------------")
         print("Features:", self.features.shape)
         print("Labels:", self.labels.shape)
         print("Videos:", len(self.video_ids))
-
 
         assert self.features.ndim == 3
 
@@ -61,13 +55,9 @@ class CachedDataset(Dataset):
 
         assert self.features.shape[2] == 768
 
-
-
     def __len__(self):
 
         return len(self.labels)
-
-
 
     def __getitem__(self, idx):
 
@@ -76,113 +66,63 @@ class CachedDataset(Dataset):
             self.labels[idx],
             idx,
             self.video_ids[idx],
-            self.frame_ids[idx]
+            self.frame_ids[idx],
         )
-
-
-
 
 
 # ATTENTION PROBE
 
 
 class AttentionProbe(nn.Module):
-
-    def __init__(
-        self,
-        input_dim,
-        num_heads,
-        dropout
-    ):
+    def __init__(self, input_dim, num_heads, dropout):
 
         super().__init__()
 
-
         # learnable query token
 
-        self.query = nn.Parameter(
-            torch.randn(1,1,input_dim)
-        )
-
+        self.query = nn.Parameter(torch.randn(1, 1, input_dim))
 
         self.norm1 = nn.LayerNorm(input_dim)
 
-
         self.attention = nn.MultiheadAttention(
-            embed_dim=input_dim,
-            num_heads=num_heads,
-            batch_first=True
+            embed_dim=input_dim, num_heads=num_heads, batch_first=True
         )
-
 
         self.norm2 = nn.LayerNorm(input_dim)
 
-
         self.dropout = nn.Dropout(dropout)
 
+        self.classifier = nn.Linear(input_dim, 2)
 
-        self.classifier = nn.Linear(
-            input_dim,
-            2
-        )
-
-
-
-    def forward(
-        self,
-        x,
-        return_attention=False
-    ):
-
+    def forward(self, x, return_attention=False):
 
         B = x.shape[0]
 
-
         # expand query for batch
 
-        q = self.query.expand(
-            B,
-            -1,
-            -1
-        )
-
+        q = self.query.expand(B, -1, -1)
 
         x = self.norm1(x)
 
-
         attn_out, weights = self.attention(
-            q,
-            x,
-            x,
-            need_weights=return_attention,
-            average_attn_weights=False
+            q, x, x, need_weights=return_attention, average_attn_weights=False
         )
-
 
         # remove query dimension
 
         x = attn_out.squeeze(1)
 
-
         x = self.norm2(x)
-
 
         x = self.dropout(x)
 
-
         logits = self.classifier(x)
-
-
 
         if return_attention:
 
             return logits, weights
 
-
         return logits
-
-
-
 
 
 # LOAD CHECKPOINT
@@ -191,35 +131,26 @@ class AttentionProbe(nn.Module):
 print("\nLoading checkpoint...")
 
 
-checkpoint = torch.load(
-    CHECKPOINT,
-    map_location=DEVICE,
-    weights_only=False
-)
+checkpoint = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=False)
 
 
 cfg = checkpoint["config"]
 
 
 print("\nCheckpoint config:")
-for k,v in cfg.items():
-    print(k,":",v)
-
+for k, v in cfg.items():
+    print(k, ":", v)
 
 
 # CREATE MODEL
 
 
 model = AttentionProbe(
-    input_dim=768,
-    num_heads=cfg["num_heads"],
-    dropout=cfg["dropout"]
+    input_dim=768, num_heads=cfg["num_heads"], dropout=cfg["dropout"]
 )
 
 
-model.load_state_dict(
-    checkpoint["model"]
-)
+model.load_state_dict(checkpoint["model"])
 
 
 model.to(DEVICE)
@@ -230,51 +161,33 @@ model.eval()
 print("\nModel loaded successfully")
 
 
-
-
-
 # SAVE FINAL INFERENCE MODEL
 
 
 torch.save(
     {
         "model_state_dict": model.state_dict(),
-
-        "architecture":{
-            "input_dim":768,
-            "num_heads":cfg["num_heads"],
-            "dropout":cfg["dropout"]
+        "architecture": {
+            "input_dim": 768,
+            "num_heads": cfg["num_heads"],
+            "dropout": cfg["dropout"],
         },
-
-        "training_config":cfg,
-
+        "training_config": cfg,
     },
-    FINAL_MODEL_OUTPUT
+    FINAL_MODEL_OUTPUT,
 )
 
 
-print(
-    "Saved final model:",
-    FINAL_MODEL_OUTPUT
-)
-
-
-
+print("Saved final model:", FINAL_MODEL_OUTPUT)
 
 
 # LOAD VALIDATION DATA
 
 
-dataset = CachedDataset(
-    VAL_FEATURES
-)
+dataset = CachedDataset(VAL_FEATURES)
 
 
-loader = DataLoader(
-    dataset,
-    batch_size=1,
-    shuffle=False
-)
+loader = DataLoader(dataset, batch_size=1, shuffle=False)
 
 # FORWARD PASS + ATTENTION EXTRACTION
 
@@ -287,109 +200,54 @@ correct = 0
 total = 0
 
 
-
 print("\nRunning validation forward pass...")
 
 
 with torch.no_grad():
 
+    for (features, labels, idx, videos, frame_ids) in loader:
 
-    for (
-        features,
-        labels,
-        idx,
-        videos,
-        frame_ids
-    ) in loader:
+        features = features.to(DEVICE)
 
-
-        features = features.to(
-            DEVICE
-        )
-
-
-        labels = labels.to(
-            DEVICE
-        )
-
-
+        labels = labels.to(DEVICE)
 
         # FORWARD PASS
 
-        logits, attn = model(
-            features,
-            return_attention=True
-        )
-
-
+        logits, attn = model(features, return_attention=True)
 
         # prediction
 
-        probs = torch.softmax(
-            logits,
-            dim=1
-        )
+        probs = torch.softmax(logits, dim=1)
 
-
-        pred = torch.argmax(
-            logits,
-            dim=1
-        )
-
+        pred = torch.argmax(logits, dim=1)
 
         confidence = probs.max().item()
 
-
-
-        correct += (
-            pred == labels
-        ).sum().item()
-
+        correct += (pred == labels).sum().item()
 
         total += 1
 
-
-
-        # 
+        #
         # ATTENTION PROCESSING
-        # 
-
+        #
 
         # Original:
         # [1, heads, 1, 576]
 
         attn = attn.squeeze(0)
 
-
         # [heads,576]
 
         attn = attn.squeeze(1)
 
-
-
         attention_dict[int(idx.item())] = {
-
-            "attention":
-                attn.cpu(),
-
-            "label":
-                int(labels.item()),
-
-            "prediction":
-                int(pred.item()),
-
-            "confidence":
-                float(confidence),
-
-            "video":
-                videos[0],
-
-            "indices":
-                frame_ids[0]
-
+            "attention": attn.cpu(),
+            "label": int(labels.item()),
+            "prediction": int(pred.item()),
+            "confidence": float(confidence),
+            "video": videos[0],
+            "indices": frame_ids[0],
         }
-
-
 
         print(
             f"{idx.item():4d} | "
@@ -400,29 +258,16 @@ with torch.no_grad():
         )
 
 # SAVE ATTENTION FILE
-torch.save(
-    attention_dict,
-    ATTENTION_OUTPUT
-)
-
+torch.save(attention_dict, ATTENTION_OUTPUT)
 
 
 print("\n")
 print("DONE")
 print("")
 
-print(
-    "Attention saved:",
-    ATTENTION_OUTPUT
-)
+print("Attention saved:", ATTENTION_OUTPUT)
 
 
-print(
-    "Validation Accuracy:",
-    100*correct/total
-)
+print("Validation Accuracy:", 100 * correct / total)
 
-print(
-    "Samples:",
-    total
-)
+print("Samples:", total)

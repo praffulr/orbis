@@ -64,26 +64,18 @@ def build_class_mapping():
     We keep IDs fixed across experiments.
     """
 
-    class_mapping = {
-        name: idx
-        for idx, name in DOTA_CLASS_NAMES.items()
-    }
+    class_mapping = {name: idx for idx, name in DOTA_CLASS_NAMES.items()}
 
     print("\nClass Mapping")
     print("-" * 60)
 
     for name, idx in class_mapping.items():
 
-        print(
-            f"{name:35s} -> {idx}"
-        )
+        print(f"{name:35s} -> {idx}")
 
     print("-" * 60)
 
-    print(
-        "Number of classes:",
-        len(class_mapping)
-    )
+    print("Number of classes:", len(class_mapping))
 
     return class_mapping
 
@@ -125,9 +117,7 @@ def load_annotations():
 
         video_accident = None
 
-        
         # Parse frame annotations
-        
 
         for item in ann["labels"]:
 
@@ -140,9 +130,7 @@ def load_annotations():
             if accident_id > 0 and accident_id <= 9:
                 video_accident = accident_id
 
-        
         # Skip unknown accident videos
-        
 
         if video_accident is None:
 
@@ -205,9 +193,7 @@ def extract_feature(data):
 
     feature = data["feature"]
 
-    
     # New cache format
-    
 
     if isinstance(feature, dict):
 
@@ -308,9 +294,7 @@ def process_feature_file(
 
     binary_label = int(data["label"])
 
-    
     # Basic validation
-    
 
     if len(indices) != 5:
 
@@ -324,17 +308,13 @@ def process_feature_file(
 
     video_accident = annotation["video_accident"]
 
-    
     # Ignore unknown classes
-    
 
     if video_accident > 9:
 
         return None
 
-    
     # Labels following Orbis
-    
 
     if binary_label == 0:
 
@@ -452,30 +432,20 @@ def build_dataset(
         raise RuntimeError("No valid samples were created.")
 
     dataset = {
-
         "features": torch.stack(features),
         "labels": torch.stack(binary_labels),
         "mc_labels": torch.stack(multiclass_labels),
         "source_mc_labels": torch.stack(source_multiclass_labels),
-
         "videos": videos,
         "indices": frame_indices,
-
         "feature_layer": FEATURE_LAYER,
-
         "num_classes": NUM_CLASSES,
-
         "class_names": DOTA_CLASS_NAMES,
-
         "class_mapping": class_mapping,
-
         "binary_distribution": dict(binary_counter),
-
         "multiclass_distribution": dict(class_counter),
-
     }
 
-    
     # Print summary
 
     print("\nDataset summary")
@@ -522,9 +492,7 @@ def stratified_split(
     ✓ Roughly preserves multiclass distribution
     """
 
-    
     # Group files by video
-    
 
     video_groups = defaultdict(list)
 
@@ -551,9 +519,7 @@ def stratified_split(
 
         video_class[video] = cls
 
-    
     # Organize videos by class
-    
 
     class_to_videos = defaultdict(list)
 
@@ -573,9 +539,7 @@ def stratified_split(
             f"{len(class_to_videos[cls])} videos"
         )
 
-    
     # Split videos
-    
 
     random.seed(SEED)
 
@@ -610,9 +574,7 @@ def stratified_split(
 
     random.shuffle(val_files)
 
-    
     # Statistics
-    
 
     print("\nSplit summary")
 
@@ -716,21 +678,15 @@ if __name__ == "__main__":
 
     print("\nBuilding V-JEPA Multi-Class Cache")
 
-    
     # Build mapping
-    
 
     class_mapping = build_class_mapping()
 
-    
     # Load annotations
-    
 
     annotation_cache = load_annotations()
 
-    
     # Collect feature files
-    
 
     feature_files = []
 
@@ -740,27 +696,21 @@ if __name__ == "__main__":
 
     print("\nTotal feature files:", len(feature_files))
 
-    
     # Split
-    
 
     train_files, val_files = stratified_split(
         feature_files,
         annotation_cache,
     )
 
-    
     # Check leakage
-    
 
     check_video_leakage(
         train_files,
         val_files,
     )
 
-    
     # Build datasets
-    
 
     print("\nBuilding training cache...")
 
@@ -778,17 +728,13 @@ if __name__ == "__main__":
         annotation_cache,
     )
 
-    
     # Statistics
-    
 
     print_cache_statistics(train_cache, "TRAIN")
 
     print_cache_statistics(val_cache, "VALIDATION")
 
-    
     # Save
-    
 
     torch.save(
         train_cache,

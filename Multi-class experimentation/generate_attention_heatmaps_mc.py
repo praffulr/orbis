@@ -7,9 +7,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 
-# ============================================================
 # CONFIG
-# ============================================================
 
 
 ATTENTION_FILE = "checkpoints_vjepa_dota_mc/" "best_val_attention_weights_mc.pt"
@@ -37,9 +35,7 @@ TOP_PERCENT = 5
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-# ============================================================
 # CLASSES
-# ============================================================
 
 
 CLASS_NAMES = {
@@ -56,9 +52,7 @@ CLASS_NAMES = {
 }
 
 
-# ============================================================
 # LOAD
-# ============================================================
 
 
 print("\nLoading attention weights...")
@@ -79,9 +73,7 @@ val_data = torch.load(VAL_FILE, weights_only=False)
 print("Validation samples:", len(val_data["videos"]))
 
 
-# ============================================================
 # CLASS ATTENTION STATISTICS
-# ============================================================
 
 
 print("\nComputing attention statistics...")
@@ -124,9 +116,7 @@ for cls in CLASS_MEANS:
     print(cls, CLASS_NAMES[cls], CLASS_MEANS[cls].shape)
 
 
-# ============================================================
 # FRAME LOADER
-# ============================================================
 
 
 def load_frame(video, frame_idx):
@@ -146,9 +136,7 @@ def load_frame(video, frame_idx):
     return image
 
 
-# ============================================================
 # ATTENTION PROCESSING
-# ============================================================
 
 
 def process_attention(attention, label):
@@ -192,9 +180,7 @@ def process_attention(attention, label):
     return positive
 
 
-# ============================================================
 # HEATMAP
-# ============================================================
 
 
 def create_heatmap(attention):
@@ -223,9 +209,7 @@ def overlay(image, heat, alpha=0.30):
     return np.uint8(np.clip(out, 0, 255))
 
 
-# ============================================================
 # VISUALIZATION
-# ============================================================
 
 
 def visualize(video, sample_id, sample):
@@ -319,9 +303,7 @@ Confidence: {confidence:.3f}
     print("Saved:", path)
 
 
-# ============================================================
 # GENERATE
-# ============================================================
 
 
 print("\nGenerating visualizations...")

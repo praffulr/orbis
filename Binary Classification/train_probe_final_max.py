@@ -14,13 +14,11 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 import wandb
 
 
-
 # CONFIG
 
 
-
 TRAIN_FILE = "./cached_features/train_vjepa_final_mc.pt"
-VAL_FILE   = "./cached_features/val_vjepa_final_mc.pt"
+VAL_FILE = "./cached_features/val_vjepa_final_mc.pt"
 
 
 CHECKPOINT_DIR = "checkpoints"
@@ -29,7 +27,6 @@ os.makedirs(CHECKPOINT_DIR, exist_ok=True)
 
 
 EPOCHS = 30
-
 
 
 # SWEEP CONFIG
@@ -54,9 +51,7 @@ sweep_config = {
 }
 
 
-
 # SEED
-
 
 
 def seed_everything(seed=42):
@@ -68,9 +63,7 @@ def seed_everything(seed=42):
     torch.manual_seed(seed)
 
 
-
 # DATASET
-
 
 
 class CachedFeatureDataset(Dataset):
@@ -90,13 +83,11 @@ class CachedFeatureDataset(Dataset):
 
         assert len(self.features.shape) == 3, "Expected [N,T,D] token features"
 
-        print(
-            "Tokens per sample:",
-            self.features.shape[1]
-        )
+        print("Tokens per sample:", self.features.shape[1])
 
-        assert self.features.shape[1] == 576, \
-            f"Expected 576 tokens for tubelet=5, got {self.features.shape[1]}"
+        assert (
+            self.features.shape[1] == 576
+        ), f"Expected 576 tokens for tubelet=5, got {self.features.shape[1]}"
 
     def __len__(self):
 
@@ -107,13 +98,10 @@ class CachedFeatureDataset(Dataset):
         return (self.features[index], self.labels[index])
 
 
-
 # MAX POOLING PROBE
 
 
-
 class MaxPoolProbe(nn.Module):
-
     def __init__(self, input_dim, dropout):
 
         super().__init__()
@@ -122,10 +110,7 @@ class MaxPoolProbe(nn.Module):
 
         self.dropout = nn.Dropout(dropout)
 
-        self.classifier = nn.Linear(
-            input_dim,
-            2
-        )
+        self.classifier = nn.Linear(input_dim, 2)
 
     def forward(self, x):
 
@@ -135,10 +120,7 @@ class MaxPoolProbe(nn.Module):
         x = self.norm(x)
 
         # Max over all tokens (dim=1)
-        x, _ = torch.max(
-            x,
-            dim=1
-        )
+        x, _ = torch.max(x, dim=1)
 
         # x
         # [B, 768]
@@ -150,9 +132,7 @@ class MaxPoolProbe(nn.Module):
         return logits
 
 
-
 # DEVICE
-
 
 
 def get_device():
@@ -170,9 +150,7 @@ def get_device():
     return torch.device("cpu")
 
 
-
 # TRAINING
-
 
 
 def train():
@@ -340,28 +318,20 @@ AUC        : {auc:.4f}
             patience_counter = 0
 
             checkpoint = {
-
                 "model": model.state_dict(),
-
                 "config": {
-
                     "learning_rate": config.learning_rate,
                     "weight_decay": config.weight_decay,
                     "batch_size": config.batch_size,
                     "beta1": config.beta1,
                     "beta2": config.beta2,
                     "dropout": config.dropout,
-
                 },
-
                 "vjepa_config": {
-
                     "tubelet_size": 5,
                     "num_frames": 5,
-                    "grid_size": (24,24)
-
-                }
-
+                    "grid_size": (24, 24),
+                },
             }
 
             torch.save(checkpoint, f"{CHECKPOINT_DIR}/best_vjepa_maxpool.pt")
@@ -381,9 +351,7 @@ AUC        : {auc:.4f}
     wandb.finish()
 
 
-
 # RUN SWEEP
-
 
 
 if __name__ == "__main__":

@@ -23,7 +23,6 @@ NORMAL_DIR = os.path.join(OUT_ROOT, "normal")
 ANOMALY_DIR = os.path.join(OUT_ROOT, "anomaly")
 
 
-
 os.makedirs(NORMAL_DIR, exist_ok=True)
 os.makedirs(ANOMALY_DIR, exist_ok=True)
 
@@ -37,12 +36,14 @@ FRAME_STRIDE = 2
 IMG_SIZE = 384
 
 # Proper preprocessing: Resize shortest edge, CenterCrop, and ImageNet Normalize
-preprocess = T.Compose([
-    T.Resize(IMG_SIZE, interpolation=T.InterpolationMode.BICUBIC),
-    T.CenterCrop(IMG_SIZE),
-    T.ToTensor(),
-    T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
+preprocess = T.Compose(
+    [
+        T.Resize(IMG_SIZE, interpolation=T.InterpolationMode.BICUBIC),
+        T.CenterCrop(IMG_SIZE),
+        T.ToTensor(),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ]
+)
 
 
 RAW_WINDOW = (NUM_FRAMES * FRAME_STRIDE) - 1
@@ -107,21 +108,15 @@ def load_model():
         k.replace("module.", "").replace("backbone.", ""): v for k, v in state.items()
     }
 
-
     # =====================================================
     # ADAPT TUBELET SIZE
     # =====================================================
 
     old_weight = state["patch_embed.proj.weight"]
 
-    print(
-        "Original patch embedding:",
-        old_weight.shape
-    )
-
+    print("Original patch embedding:", old_weight.shape)
 
     TARGET_TUBELET = 5
-
 
     if old_weight.shape[2] != TARGET_TUBELET:
 
@@ -129,62 +124,33 @@ def load_model():
 
         out_c, in_c, old_t, h, w = old_weight.shape
 
-
         # Merge spatial dimensions
         # [768,3,2,16,16]
         # ->
         # [768*3*16*16, 2]
 
-        weight = old_weight.permute(
-            0,1,3,4,2
-        ).reshape(
-            -1,
-            old_t
-        )
-
+        weight = old_weight.permute(0, 1, 3, 4, 2).reshape(-1, old_t)
 
         # interpolate temporal dimension
 
         weight = torch.nn.functional.interpolate(
-            weight.unsqueeze(1),
-            size=TARGET_TUBELET,
-            mode="linear",
-            align_corners=False
+            weight.unsqueeze(1), size=TARGET_TUBELET, mode="linear", align_corners=False
         )
-
 
         # [N,1,5]
         # ->
         # [768,3,16,16,5]
 
-        weight = weight.squeeze(1).reshape(
-            out_c,
-            in_c,
-            h,
-            w,
-            TARGET_TUBELET
-        )
-
+        weight = weight.squeeze(1).reshape(out_c, in_c, h, w, TARGET_TUBELET)
 
         # ->
         # [768,3,5,16,16]
 
-        new_weight = weight.permute(
-            0,
-            1,
-            4,
-            2,
-            3
-        )
-
+        new_weight = weight.permute(0, 1, 4, 2, 3)
 
         state["patch_embed.proj.weight"] = new_weight
 
-
-    print(
-        "New patch embedding:",
-        state["patch_embed.proj.weight"].shape
-    )
+    print("New patch embedding:", state["patch_embed.proj.weight"].shape)
 
     msg = model.load_state_dict(state, strict=False)
 
@@ -267,7 +233,6 @@ def sample_indices(start, total_frames):
 
 
 def frames_to_tensor(paths):
-
 
     imgs = []
 

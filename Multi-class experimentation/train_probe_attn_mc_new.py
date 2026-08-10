@@ -27,9 +27,7 @@ import wandb
 from collections import Counter
 
 
-
 # CONFIGURATION
-
 
 
 TRAIN_FILE = "cached_features_tb5_new/train_final_mc.pt"
@@ -60,9 +58,7 @@ DEVICE = (
 print("\nUsing device:", DEVICE)
 
 
-
 # DATASET
-
 
 
 class VJEPAFeatureDataset(Dataset):
@@ -175,9 +171,7 @@ class VJEPAFeatureDataset(Dataset):
         }
 
 
-
 # ATTENTION PROBE MODEL
-
 
 
 class AttentionProbe(nn.Module):
@@ -294,16 +288,12 @@ class AttentionProbe(nn.Module):
 
 def compute_class_weights(labels, num_classes):
 
-    counts = torch.bincount(
-        labels,
-        minlength=num_classes
-    )
+    counts = torch.bincount(labels, minlength=num_classes)
 
     print("\nClass counts:")
 
-    for i,c in enumerate(counts):
+    for i, c in enumerate(counts):
         print(i, c.item())
-
 
     counts = counts.float()
 
@@ -311,12 +301,9 @@ def compute_class_weights(labels, num_classes):
 
     valid = counts > 0
 
-    weights[valid] = len(labels) / (
-        num_classes * counts[valid]
-    )
+    weights[valid] = len(labels) / (num_classes * counts[valid])
 
     return weights
-
 
 
 def initialize_training(config):
@@ -331,52 +318,31 @@ def initialize_training(config):
 
     num_classes = train_dataset.num_classes
 
-    class_counts = torch.bincount(
-        train_dataset.labels,
-        minlength=num_classes
-    )
-
+    class_counts = torch.bincount(train_dataset.labels, minlength=num_classes)
 
     class_weights_sampler = 1.0 / class_counts.float()
 
-
-    sample_weights = class_weights_sampler[
-        train_dataset.labels
-    ]
-
+    sample_weights = class_weights_sampler[train_dataset.labels]
 
     sampler = WeightedRandomSampler(
-        weights=sample_weights,
-        num_samples=len(sample_weights),
-        replacement=True
+        weights=sample_weights, num_samples=len(sample_weights), replacement=True
     )
-
 
     train_loader = DataLoader(
-        train_dataset,
-        batch_size=config.batch_size,
-        sampler=sampler
+        train_dataset, batch_size=config.batch_size, sampler=sampler
     )
 
-
     val_loader = DataLoader(
-        val_dataset,
-        batch_size=config.batch_size,
-        shuffle=False,
-        drop_last=False
+        val_dataset, batch_size=config.batch_size, shuffle=False, drop_last=False
     )
 
     # -------------------------------
     # Class weights
     # -------------------------------
 
-    class_weights = compute_class_weights(
-        train_dataset.labels,
-        num_classes
-    )
+    class_weights = compute_class_weights(train_dataset.labels, num_classes)
 
     class_weights = class_weights.to(DEVICE)
-
 
     # -------------------------------
     # Model
@@ -386,22 +352,18 @@ def initialize_training(config):
         input_dim=768,
         num_classes=num_classes,
         num_heads=config.num_heads,
-        dropout=config.dropout
+        dropout=config.dropout,
     )
 
     model = model.to(DEVICE)
-
 
     # -------------------------------
     # Loss
     # -------------------------------
 
-    train_criterion = nn.CrossEntropyLoss(
-        weight=class_weights
-    )
+    train_criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     val_criterion = nn.CrossEntropyLoss()
-
 
     # -------------------------------
     # Optimizer
@@ -411,12 +373,8 @@ def initialize_training(config):
         model.parameters(),
         lr=config.learning_rate,
         weight_decay=config.weight_decay,
-        betas=(
-            config.beta1,
-            config.beta2
-        )
+        betas=(config.beta1, config.beta2),
     )
-
 
     return (
         train_dataset,
@@ -431,9 +389,7 @@ def initialize_training(config):
     )
 
 
-
 # TRAINING FUNCTION
-
 
 
 def train():
@@ -687,9 +643,7 @@ def train():
     wandb.finish()
 
 
-
 # WANDB SWEEP CONFIGURATION
-
 
 
 sweep_config = {
@@ -737,9 +691,7 @@ sweep_config = {
 }
 
 
-
 # MAIN
-
 
 
 if __name__ == "__main__":
@@ -753,4 +705,3 @@ if __name__ == "__main__":
     print("\nSweep ID:", sweep_id)
 
     wandb.agent(sweep_id, function=train, count=20)
-

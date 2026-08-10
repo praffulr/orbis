@@ -4,9 +4,8 @@ import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
 
-# =====================================================
 # CONFIG
-# =====================================================
+
 
 CHECKPOINT = "checkpoints/best_vjepa_attention.pt"
 
@@ -24,9 +23,7 @@ DEVICE = (
 )
 
 
-# =====================================================
 # CUSTOM COLLATE
-# =====================================================
 
 
 def custom_collate(batch):
@@ -44,9 +41,7 @@ def custom_collate(batch):
     return (features, labels, indices, videos, frame_indices)
 
 
-# =====================================================
 # DATASET
-# =====================================================
 
 
 class CachedDataset(Dataset):
@@ -104,9 +99,7 @@ class CachedDataset(Dataset):
         )
 
 
-# =====================================================
 # ATTENTION PROBE
-# =====================================================
 
 
 class AttentionProbe(nn.Module):
@@ -157,9 +150,7 @@ class AttentionProbe(nn.Module):
         return logits
 
 
-# =====================================================
 # LOAD CHECKPOINT
-# =====================================================
 
 
 checkpoint = torch.load(CHECKPOINT, map_location=DEVICE, weights_only=False)
@@ -196,9 +187,7 @@ model.eval()
 print("\nProbe loaded successfully")
 
 
-# =====================================================
 # GENERATE ATTENTION
-# =====================================================
 
 
 attention_dict = {}
@@ -272,9 +261,7 @@ with torch.no_grad():
         )
 
 
-# =====================================================
 # SAVE
-# =====================================================
 
 
 torch.save(attention_dict, OUT_FILE)
