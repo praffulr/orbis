@@ -12,10 +12,14 @@ import torch
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DIAGNOSTIC_PROBES_DIR = PROJECT_ROOT / "DiagnosticProbes"
+DIAGNOSTIC_PROBES_SCRIPTS = DIAGNOSTIC_PROBES_DIR / "scripts"
+
 if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
+    sys.path.insert(0, str(PROJECT_ROOT))
+if str(DIAGNOSTIC_PROBES_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(DIAGNOSTIC_PROBES_SCRIPTS))
 
 from util import instantiate_from_config
 from dota import get_dota_dataloaders, DOTA_CLASS_NAMES
@@ -155,8 +159,6 @@ def main():
     state = torch.load(f"{args.exp_dir}/{args.ckpt}", map_location="cpu", weights_only=True)["state_dict"]
     model.load_state_dict(state, strict=True)
     model = model.to(device).eval()
-
-    
 
     frame_rate = torch.full((1,), FRAME_RATE_HZ, device=device)
     all_samples = []

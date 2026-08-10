@@ -38,17 +38,14 @@ def main():
     device = get_device()
     print(f"Using device: {device}")
 
-    # Declare CALIB_STATS_PATH as global since we reassign it during fallback
     global CALIB_STATS_PATH
 
-    # 1. Read Class Manifest & Select 10 Clips Per Class
     if not MANIFEST_PATH.exists():
         raise FileNotFoundError(f"Manifest not found at {MANIFEST_PATH}. Run sampling script first.")
 
     with open(MANIFEST_PATH, "r") as f:
         manifest = json.load(f)
 
-    # Group clips by class and pick top 10 per class
     clips_by_class = defaultdict(list)
     for sample in manifest:
         clips_by_class[sample["anomaly_name"]].append(sample)
@@ -59,7 +56,6 @@ def main():
 
     print(f"Selected {len(selected_manifest)} total clips across {len(clips_by_class)} classes.")
 
-    # 2. Load Model
     print("Loading model...")
     cfg = OmegaConf.load(EXP_DIR / "config.yaml")
     model = instantiate_from_config(cfg.model)
@@ -68,7 +64,6 @@ def main():
     model.load_state_dict(state, strict=True)
     model = model.to(device).eval()
 
-    # 3. Load Calibration Stats
     if not CALIB_STATS_PATH.exists():
         fallback_path = ORBIS_ROOT / "results" / "calib_stats.pt"
         if fallback_path.exists():
@@ -79,7 +74,6 @@ def main():
     print(f"Loading calibration stats from: {CALIB_STATS_PATH}")
     calib_stats = torch.load(CALIB_STATS_PATH, weights_only=True)
 
-    # Total tasks: clips * 2 splits (OOD / Non-OOD)
     total_tasks = len(selected_manifest) * 2
     processed_count = 0
 
@@ -100,7 +94,6 @@ def main():
             processed_count += 1
             sample_label = f"{class_name}_{split.upper()}"
             
-            # Expected Z-Score file path
             expected_filename = f"overlay_{sample_label.lower()}_combined_zscore.png"
             expected_filepath = save_dir / expected_filename
 

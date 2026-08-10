@@ -15,9 +15,12 @@ from torch.utils.data import Dataset, DataLoader
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DIAGNOSTIC_PROBES_DIR = PROJECT_ROOT / "DiagnosticProbes"
 if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+    
 from util import instantiate_from_config
 
 RESULTS_DIR = "results_pt"
