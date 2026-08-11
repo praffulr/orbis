@@ -26,8 +26,11 @@ For the **Retrospective Surprise Measure** experiment. The workflow extracts sur
 
 ### 1.3 VJEPA Probes
 
-For the **Retrospective Surprise Measure** experiment. The workflow extracts surprise maps from target clips across multiple architectural heads (`detailed`, `semantic`, and `combined`) and timesteps, computes calibration metrics across non-OOD baseline samples, normalizes scores using the baseline statistics, and generates spatial visual overlays.
+For the **VJEPA Probes** experiment, pretrained V-JEPA 2.1 representations are extracted from five-frame DoTA clips and cached as frozen token embeddings. Two lightweight binary classification probes are then trained on these representations:
 
+- **Attention-Pooling Probe:** Uses a learnable query with multi-head attention to assign different weights to the 576 spatial tokens before classification, allowing the model to learn which spatial regions are most relevant for distinguishing normal and anomalous driving scenarios.
+
+- **Max-Pooling Probe:** Applies element-wise max pooling across the 576 spatial tokens to obtain a single 768-dimensional representation, which is then passed to a linear binary classifier. This serves as a simple non-parametric baseline against the learned attention-pooling approach.
 ---
 ## 2. Run Experiments
 ### 2.1 Experiment Replication for Surprise Workflow
