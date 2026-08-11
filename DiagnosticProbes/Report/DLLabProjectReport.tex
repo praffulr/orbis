@@ -118,11 +118,7 @@ The ViT-B/16 architecture uses a hidden embedding dimension of 768 and 12 Transf
 576
 \end{equation}
 
-spatial tokens. Each token is represented by a 768-dimensional embedding. Consequently, the spatial representation used by the downstream probing experiments has the form
-
-\begin{equation}
-\mathbf{X}\in\mathbb{R}^{576\times768}.
-\end{equation}
+spatial tokens. Each token is represented by a 768-dimensional embedding.
 
 
 \subsection{Orbis Surprise Scores Evaluation}
@@ -263,39 +259,14 @@ x_{\text{norm}} = \frac{x' - \min(X')}{\max(X') - \min(X')}
 \end{figure}
 
 \subsection{V-JEPA Experiment Setup}
-
 We use the pretrained V-JEPA model as a frozen video feature extractor. No fine-tuning is performed using DoTA anomaly labels. Instead, V-JEPA representations are extracted once and cached for all subsequent probing experiments.
 The temporal configuration is described separately below. In our experiments, 5 consecutive context frames are provided to the model and a temporal tubelet size of 5 is used. This allows the complete five-frame temporal context to contribute to the extracted representation.
 
-\subsubsection{Input preprocessing and temporal configuration}
-
-We processed the DoTA videos at 10 FPS and sampled the final inputs at 5 FPS. Each sample consists of five consecutive context frames, providing approximately one second of temporal context.
-
-We use a temporal tubelet size of five. This configuration was chosen after observing that a tubelet size of two with five input frames left the final frame unrepresented because the temporal dimension was not evenly divisible by the tubelet size. Since the final frame contains the most recent information about the driving event, excluding it was undesirable for retrospective anomaly detection. Using a tubelet size of five ensures that the complete input sequence contributes to the representation.
-
-The input resolution is $384\times384$ pixels, resulting in a $24\times24$ spatial token grid. The extracted representation therefore contains 576 tokens with 768-dimensional embeddings:
-
-\begin{equation}
-\mathbf{X}\in\mathbb{R}^{576\times768}.
-\end{equation}
-
-\subsubsection{Feature extraction}
-
-V-JEPA is used only for feature extraction and remains frozen throughout the experiments. The resulting representations are cached to avoid repeated inference during probing and hyperparameter optimization. All pooling methods therefore operate on the same frozen V-JEPA features.
-
-
-
-
-
-
-
-
+We use a temporal tubelet size of five, and this configuration was chosen after observing that a tubelet size of two with five input frames left the final frame unrepresented because the temporal dimension was not evenly divisible by the tubelet size. Since the final frame contains the most recent information about the driving event, excluding it was undesirable for retrospective anomaly detection. Using a tubelet size of five ensures that the complete input sequence contributes to the representation. We also transform the image to a $384\times384$ size before passing it through the model, along with ImageNet normalization.
 
 \section{Experiments}
-
 \subsection{Orbis}
 Of all the binary probes experimented upon, the attention probe trained on Orbis activations from block 18 performed the best for anomaly detection.
-
 
 \begin{figure}[H]
 \centering
@@ -360,9 +331,9 @@ The confusion matrix complements the aggregate accuracy and AUROC metrics by sho
 \subsubsection{Visualizing the Encoder Heads}
 When we overlay the normalized surprise scores directly onto the video frames, we can clearly see how each encoder head behaves \ref{fig:zscore}
 \begin{itemize}
-    \item \textbf{Detailed Head:} This head does a much better job than the semantic head at catching the actual structure of the anomaly, though it can look a bit noisy around the edges.
-    \item \textbf{Semantic Head:} This head is less precise and often misses the core layout of the anomalous event.
-    \item \textbf{Combined Encoder:} This gives the cleanest results. It provides the best overlap with the actual anomaly, pinpointing the event while cutting out background noise.
+    \item \textbf{Detailed Head:} The Detailed head almost always does a better job than the semantic head at catching the actual structure of the anomaly, although it can look a bit noisy around the edges.
+    \item \textbf{Semantic Head:} The Semantic head is less precise and often misses the core layout of the anomalous event.
+    \item \textbf{Combined Encoder:} The Combined head gives the cleanest results. It provides the best overlap with the actual anomaly, pinpointing the event while cutting out background noise.
 \end{itemize}
 
 \subsubsection{Impact of Noise Levels}
@@ -458,7 +429,7 @@ While we limited this study to attention heatmaps of only the midblock activatio
 
 We would like to thank Sudhanshu Mittal, Arian Mousakhan, Silvio Galesso for their invaluable insights and constant support throughout the project.
 \newline
-\textbf{AI Statement: } During the coding phase of the experiments and editing the contents of the report, the authors utilized Gemini 3.1 Pro, Claude Sonnet and Github Copilot to develop the structural snippets of code and text and for debugging. The authors present the reviewed and tested code and text, and hold full responsibility of the integrity, accuracy and intellectual ownership of the presented work.
+\textbf{AI Statement: } During the coding phase of the experiments and editing the contents of the report, we utilized Gemini 3.1 Pro, Claude Sonnet and Github Copilot to develop the structural snippets of code and text and for debugging. We present the reviewed and tested code and text, and hold full responsibility of the integrity, accuracy and intellectual ownership of the presented work.
 
 \nocite{*}
 \bibliographystyle{unsrt}
