@@ -35,16 +35,16 @@
 \begin{center}
   \vspace{-1em}
   \small
-  \href{https://github.com/praffulr/orbis/}{\textbf{Code}} \hspace{2.5cm}
-  \href{https://docs.google.com/presentation/d/1vSjIcm-ZPFSqv2tu0EHXunBesxpN75blGTJK6Qp84Kc/edit?usp=sharing}{\textbf{Poster}} \hspace{2.5cm}
-  \href{https://drive.google.com/drive/folders/1jM6e35PUd1ftvEMwIhTiFTQwBcKyLqT-?usp=share_link}{\textbf{Results}}
+  \underline{\href{https://github.com/praffulr/orbis/}{\textbf{Code}}} \hspace{2.5cm}
+  \underline{\href{https://docs.google.com/presentation/d/1vSjIcm-ZPFSqv2tu0EHXunBesxpN75blGTJK6Qp84Kc/edit?usp=sharing}{\textbf{Poster}}} \hspace{2.5cm}
+  \underline{\href{https://drive.google.com/drive/folders/1jM6e35PUd1ftvEMwIhTiFTQwBcKyLqT-?usp=share_link}{\textbf{Results}}}
 \end{center}
 
 
 \begin{abstract}
 \vspace{0.5em}
   \noindent\textbf{Keywords:} Orbis, V-JEPA, DoTA, Retrospective Surprise, Tubelet Size, Diagnostic Probes \newline
-  Orbis proved to yield state-of-the-art performance in long-horizon prediction, especially in challenging scenarios like turning maneuvers and traffic. In this study, we perform an evaluation on Orbis and V-JEPA 2.1 ViT-B for Out-of-Distribution (OOD) scenarios involving several anomalous classes of collisions. We show that Orbis, when trained upon mid-block activations can predict anomalies consistently better than the V-JEPA variant, for anomalies involving cars. While the V-JEPA model of 80M parameters also performs fairly well for obstacle and pedestrian anomalies, they often do not attend to the intended anomalies. Our study also concludes that the training-free retrospective surprise scores is a reliable metric for detection of anomalies, especially for classes like obstacles and pedestrians. Project codebase along with the links for poster, checkpoints and results can be found here - \href{https://github.com/praffulr/orbis/}{https://github.com/praffulr/orbis/}
+  Orbis proved to yield state-of-the-art performance in long-horizon prediction, especially in challenging scenarios like turning maneuvers and traffic. In this study, we perform an evaluation on Orbis and V-JEPA 2.1 ViT-B for Out-of-Distribution (OOD) scenarios involving several anomalous classes of collisions. We show that Orbis, when trained upon mid-block activations can predict anomalies consistently better than the V-JEPA variant, for anomalies involving cars. While the V-JEPA model of 80M parameters also performs fairly well for obstacle and pedestrian anomalies, they often do not attend to the intended anomalies. Our study also concludes that the training-free retrospective surprise scores is a reliable metric for detection of anomalies, especially for classes like obstacles and pedestrians. Project codebase along with the links for poster, checkpoints and results can be found here - \underline{\href{https://github.com/praffulr/orbis/}{https://github.com/praffulr/orbis/}}
   
 \end{abstract}
 \section{Background}
@@ -52,8 +52,7 @@
 \subsection{Orbis Architecture}
 \begin{figure}[h]
     \centering
-
-    \includegraphics[width=0.8\textwidth]{figures/OrbisArch.png}
+    \includegraphics[width=\linewidth]{figures/OrbisArch.png}
     \caption{Overview of Orbis Architecture}
     \label{fig:orbisArch}
 \end{figure}
@@ -170,7 +169,7 @@ From the available classes of DoTA, the curated dataset of 3000 processed sample
 \begin{figure}[h]
     \centering
 
-    \includegraphics[width=0.8\textwidth]{figures/dataset_class_distribution_bar.png}
+    \includegraphics[width=\linewidth]{figures/dataset_class_distribution_bar.png}
     \caption{Class-distribution of the benchmark curated from DoTA}
     \label{fig:classDistribution}
 \end{figure}
@@ -194,7 +193,7 @@ Max pooling is used as a non-parametric baseline. For each of the 768 embedding 
 \begin{figure}[h]
     \centering
 
-    \includegraphics[width=0.8\textwidth]{figures/ProbeArch.png}
+    \includegraphics[width=\linewidth]{figures/ProbeArch.png}
     \caption{Diagnostic Probes Architectures}
     \label{fig:probeArch}
 \end{figure}
@@ -237,7 +236,7 @@ When visualizing these metrics as spatial overlays on images, the scores were bo
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\linewidth]{figures/zscore.png}
+    \includegraphics[width=\linewidth]{figures/zscore.png}
     \caption{zscore normalization (1-3 std dev)}
     \label{fig:zscore}
 \end{figure}
@@ -253,16 +252,21 @@ x_{\text{norm}} = \frac{x' - \min(X')}{\max(X') - \min(X')}
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.5\linewidth]{figures/minmax.png}
+    \includegraphics[width=\linewidth]{figures/minmax.png}
     \caption{min-max normalization on un-normalized raw-scores}
     \label{fig:minmax}
 \end{figure}
 
 \subsection{V-JEPA Experiment Setup}
 We use the pretrained V-JEPA model as a frozen video feature extractor. No fine-tuning is performed using DoTA anomaly labels. Instead, V-JEPA representations are extracted once and cached for all subsequent probing experiments.
+\subsubsection{Tubelet Size}
 The temporal configuration is described separately below. In our experiments, 5 consecutive context frames are provided to the model and a temporal tubelet size of 5 is used. This allows the complete five-frame temporal context to contribute to the extracted representation.
 
 We use a temporal tubelet size of five, and this configuration was chosen after observing that a tubelet size of two with five input frames left the final frame unrepresented because the temporal dimension was not evenly divisible by the tubelet size. Since the final frame contains the most recent information about the driving event, excluding it was undesirable for retrospective anomaly detection. Using a tubelet size of five ensures that the complete input sequence contributes to the representation. We also transform the image to a $384\times384$ size before passing it through the model, along with ImageNet normalization.
+\subsubsection{Linear Interpolation of Model Weights}
+
+
+Since the pretrained checkpoint uses a different temporal kernel size from the target tubelet configuration, the temporal dimension of the patch-embedding kernel was adapted using linear interpolation. Specifically, the pretrained kernel weights were reshaped along the temporal dimension and interpolated to a temporal size of 5, enabling the pretrained V-JEPA weights to be used with the five-frame input configuration without random reinitialization of the patch-embedding layer.
 
 \section{Experiments}
 \subsection{Orbis}
@@ -318,7 +322,7 @@ The attention visualization provides qualitative evidence for the behavior of th
 
 \begin{figure}[h]
 \centering
-\includegraphics[width=0.65\linewidth]{figures/vjepa_confusion_matrix.png}
+\includegraphics[width=\linewidth]{figures/vjepa_confusion_matrix.png}
 \caption{Confusion matrix of the final V-JEPA attention-pooling model on the validation set. The matrix shows the classification performance for normal and anomalous driving scenarios.}
 \label{fig:vjepa_confusion}
 \end{figure}
@@ -329,7 +333,7 @@ The confusion matrix complements the aggregate accuracy and AUROC metrics by sho
 \subsection{Orbis Surprise Scores}
 
 \subsubsection{Visualizing the Encoder Heads}
-When we overlay the normalized surprise scores directly onto the video frames, we can clearly see how each encoder head behaves \ref{fig:zscore}
+When we overlay the normalized surprise scores directly onto the video frames, we can clearly see how each encoder head behaves Figure \ref{fig:zscore}
 \begin{itemize}
     \item \textbf{Detailed Head:} The Detailed head almost always does a better job than the semantic head at catching the actual structure of the anomaly, although it can look a bit noisy around the edges.
     \item \textbf{Semantic Head:} The Semantic head is less precise and often misses the core layout of the anomalous event.
@@ -337,13 +341,16 @@ When we overlay the normalized surprise scores directly onto the video frames, w
 \end{itemize}
 
 \subsubsection{Impact of Noise Levels}
-Looking at the noise steps from $t = 0.2$ to $t = 0.8$ in \ref{fig:zscore}, there is a steady rise in the overall surprise factor. The heatmaps get brighter and much more focused as the noise increases. This suggests that higher noise levels actually help the model better understand and distinguish out-of-distribution events from normal backgrounds.
+Looking at the noise steps from $t = 0.2$ to $t = 0.8$ in Figure \ref{fig:zscore}, there is a steady rise in the overall surprise factor. The heatmaps get brighter and much more focused as the noise increases. This suggests that higher noise levels actually help the model better understand and distinguish out-of-distribution events from normal backgrounds.
 
-\subsubsection{Classifier Performance}
-We also benchmarked how well these surprise scores perform when fed into downstream classifiers, comparing them against direct feature probing (Table 1):
+\subsection{Classifiers Performance}
+We benchmarked how well all these variants performed when fed into downstream classifiers in Table \ref{tab:dota_variants_comparison}:
 \begin{itemize}
-    \item \textbf{Surprise Scores:} The \textit{Combined} surprise scores yield the strongest results in this category with an accuracy of $0.69$ and an AUC of $0.75$. Looking at the individual heads, the \textit{Semantic} head yields better quantitative performance ($0.64$ accuracy) compared to the \textit{Detailed} head ($0.60$ accuracy), even though the Detailed head looks better visually.
-    \item \textbf{Feature Probes:} If we look at training classifiers directly on the model's internal features rather than training-free surprise scores, probing the raw \textit{Orbis Activations} with an Attention Probe gives the highest overall results on the benchmark, reaching an accuracy of $0.77$ and an AUC of $0.85$.
+      \item \textbf{Orbis Probes:} Training classifiers directly on the model's internal mid-block activations, with an Attention Probe gives the highest overall results on the benchmark, reaching an accuracy of $0.77$ and an AUC of $0.85$. These results are significantly better than probes trained directly on the encoder embeddings.
+    \item \textbf{V-JEPA Probes:} Attention probe trained on frozen V-JEPA embeddings performs best among all V-JEPA variants, with an accuracy of $0.68$ and an AUC of $0.76$. 
+    \item \textbf{Orbis Surprise Scores:} The \textit{Combined} surprise scores yield the strongest results in this category with an accuracy of $0.69$ and an AUC of $0.75$. Looking at the individual heads, the \textit{Semantic} head yields better quantitative performance ($0.64$ accuracy) compared to the \textit{Detailed} head ($0.60$ accuracy), even though the Detailed head looks better visually.
+
+
 \end{itemize}
 
 
@@ -404,7 +411,7 @@ The below confusion matrix is for the multi-class classification task trained on
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/cm_10x10_multiclass_heatmap.png}
+    \includegraphics[width=\linewidth]{figures/cm_10x10_multiclass_heatmap.png}
     \caption{Confusion matrix for the multi-class classification task}
     \label{fig:mc_confusionmatric}
 \end{figure}
@@ -415,7 +422,7 @@ We observed that the Orbis attention probe trained on midblock activations perfo
 
 Training-free surprise score evaluation proves to be a good metric for anomaly detection and works best at high noise. We first verified that the mean surprise scores across anomalous samples are significantly higher than for normal samples, and that the surprise scores are similar for normal samples across different random sampled subsets of the dataset. This motivated us to use surprise scores as a heuristic for anomaly detection, and train diagnostic probes. We also trained separate probes for the Semantic and Detail heads in the latent space, and studied the performance at 4 different noise levels. 
 
-The probes perform significantly for higher noise levels. Even though the probes trained on the combined encoder embedding perform the best, the semantic head performs better than the detailed head. However, the overlaid plots of raw surprise scores reveal that the Detailed head has better surprise on the anomalous regions. 
+The probes perform significantly better at higher noise levels. Even though the probes trained on the combined encoder embedding perform the best, the semantic head performs better than the detailed head. However, the overlaid plots of raw surprise scores reveal that the Detailed head has better surprise on the anomalous regions. 
 
 The V-JEPA variant achieves a decent performance on anomaly prediction, yet it often does not attend to anomalies.
 We believe that the V-JEPA prediction is motivated by the proximity of objects in the scene rather than the actual anomalies.
@@ -451,7 +458,7 @@ We would like to thank Sudhanshu Mittal, Arian Mousakhan, Silvio Galesso for the
 \begin{figure}[h]
     \centering
 
-    \includegraphics[width=0.8\textwidth]{figures/dota.png}
+    \includegraphics[width=\linewidth]{figures/dota.png}
     \caption{Temporal Schema of a DoTA Sequence}
     \label{fig:dota}
 \end{figure}
@@ -476,13 +483,13 @@ For all the variants, Bayesian Hyperparameter Optimization (HPO) was performed u
     \item Early Stopping Patience
     \item Number of Attention Heads (Attention Pooling only)
     \item Dropout Probability
-    \item $\beta_1$ (for Class-Balanced Loss)
+    \item $\beta$ (for Class-Balanced Loss)
 \end{itemize}
 
 All probes were trained using the AdamW optimizer together with Early Stopping based on the validation loss.
 
 \section{HeatMaps}
-View the heatmaps segregated by source-class, for each variant of the Diagnostic probes \href{https://drive.google.com/drive/folders/1nYQ-vDPLmx2u-Tlx3z-k3wS5PgYqUKkz?usp=share_link}{here}
+View the heatmaps segregated by source-class, for each variant of the Diagnostic probes \underline{\href{https://drive.google.com/drive/folders/1nYQ-vDPLmx2u-Tlx3z-k3wS5PgYqUKkz?usp=share_link}{here}}
 \section{Checkpoints}
-View the best Checkpoints recorded for the Diagnostic probes \href{https://drive.google.com/drive/folders/1nYQ-vDPLmx2u-Tlx3z-k3wS5PgYqUKkz?usp=share_link}{here}
+View the best Checkpoints recorded for the Diagnostic probes \underline{\href{https://drive.google.com/drive/folders/1nYQ-vDPLmx2u-Tlx3z-k3wS5PgYqUKkz?usp=share_link}{here}}
 \end{document}
