@@ -103,7 +103,29 @@ python DiagnosticProbes/scripts/plot_comparison.py
 ```
 
 ### 2.3 Experiment Replication for VJEPA Diagnostic Probes (review dota_vjepa_implementation branch for full details)
+Step 1: Prepare and Cache V-JEPA Activations
+```python
+python "Binary Classification/cache_activations_vjepa.py"
+```
+Step 2: Train Attention-Pooling Probe
+```python
+python "Binary Classification/train_probe_final_attn.py"
+```
 
+Step 2(alt): Train Max-Pooling Probe
+```python
+python "Binary Classification/train_probe_final_max.py"
+```
+
+Step 4: Generate Attention Weights
+```python
+python "Binary Classification/generate_attention_weights.py"
+```
+
+Step 5: Generate Attention Heatmaps and Overlays
+```python
+python "Binary Classification/generate_heatmaps.py"
+```
 ---
 
 ## 3 Appendix
