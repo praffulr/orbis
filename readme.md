@@ -1,28 +1,34 @@
 # Out-of-Distribution Evaluation of World Models - Orbis, VJEPA 2.1
 Review the original Readme file for complete details - [readme_original.md](readme_original.md)
 
-## 0. Curating Benchmarks
+To reproduce the experiments below, the respective checkpoints can be downloaded from - [checkpoints](https://drive.google.com/drive/folders/1RPixmYdDNdBwpeyYk8LFegW2MghH128q?usp=drive_link)
+
+To learn more about the experiment and its processes in detail, we have created a detailed report that can be found here - [report](DiagnosticProbes/Report/DLLabProjectReport.pdf)
+
+## Curating Benchmarks
 Since DoTA collects data at a sampling frequency of 10 fps, we subsampled 5 frames of context at 5 fps, for each of the training and test sequences. This is to stay consistent with the original experimental setup on ORBIS, and to not introduce any additional variance in the studies. We used a train-validation split of 4:1 and utilized 3000 data sequences from the DoTA dataset, to derive OOD and ID samples from each sequence, by leveraging the temporal annotations provided by the dataset. We also normalized the data (Layer Norm) before feeding the data into the classifier/self-attention blocks.
 
 Each clip in DOTA has some segment (ie. some number of frames) which is marked as anomalous and we used this annotation to generate anomalous and non-anomalous frames for a single clip. Also since we need to sample data at 5 fps we picked the alternate frames to convert it from 10 to 5 fps. When we didn't have enough clips after the end of the anomalous section, we picked from start.
 
-DOTA has 9 classes in total - oncoming, leave-to-left, leave-to-right, lateral, moving-ahead-or-waiting, turning, unknown, start-stop-or-stationary, pedestrian
-
-among these we ignored the class unknown and also skipped night frames using annotations!
+DOTA has 9 classes in total - oncoming, leave-to-left, leave-to-right, lateral, moving-ahead-or-waiting, turning, unknown, start-stop-or-stationary, pedestrian among these we ignored the class unknown and also skipped night frames using annotations meta-data.
 
 For the surprise detection experiment, we chose 3000 in-distribution samples to get a calibrated mean and std-dev and used these to normalize our scores for Out-of-Distribution sample scores.
 
-We also used a sample size of 3000 samples and this sample was used to evaluate our classifiers for Orbis activations, Surprise attention and Vjepa activations.
+We also used a sample size of 3000 samples which was used to evaluate our classifiers for Orbis activations, Surprise attention and Vjepa activations.
 
 ---
 ## 1. Methods
 ### 1.1 Retrospective Surprise Measure
 
-For the **Retrospective Surprise Measure** experiment. The workflow extracts surprise maps from target clips across multiple architectural heads (`detailed`, `semantic`, and `combined`) and timesteps, computes calibration metrics across non-OOD baseline samples, normalizes scores using the baseline statistics, and generates spatial visual overlays.
+For the **Retrospective Surprise Measure** experiment, we generate surprise maps from target clips across multiple architectural heads (`detailed`, `semantic`, and `combined`) and timesteps, compute calibration metrics across non-OOD baseline samples, normalize scores using the baseline statistics, and generate spatial visual overlays.
 
 ### 1.2 Orbis Activations
 
-For the **Retrospective Surprise Measure** experiment. The workflow extracts surprise maps from target clips across multiple architectural heads (`detailed`, `semantic`, and `combined`) and timesteps, computes calibration metrics across non-OOD baseline samples, normalizes scores using the baseline statistics, and generates spatial visual overlays.
+For the **Orbis probing** experiment, feature representations are extracted from five-frame DoTA clips and cached as frozen token embeddings. Two lightweight binary classification probes are then trained on these representations:
+
+- **Attention-Pooling Probe:** Uses a learnable query with multi-head attention to assign different weights to the 576 spatial tokens before classification, allowing the model to learn which spatial regions are most relevant for distinguishing normal and anomalous driving scenarios.
+
+- **Max-Pooling Probe:** Applies element-wise max pooling across the 576 spatial tokens to obtain a single 768-dimensional representation, which is then passed to a linear binary classifier. This serves as a simple non-parametric baseline against the learned attention-pooling approach.
 
 ### 1.3 VJEPA Probes
 
@@ -33,7 +39,7 @@ For the **VJEPA Probes** experiment, pretrained V-JEPA 2.1 representations are e
 - **Max-Pooling Probe:** Applies element-wise max pooling across the 576 spatial tokens to obtain a single 768-dimensional representation, which is then passed to a linear binary classifier. This serves as a simple non-parametric baseline against the learned attention-pooling approach.
 ---
 ## 2. Run Experiments
-### 2.1 Experiment Replication for Surprise Workflow
+### 2.1 Experiment Replication for Surprise Measure
 
 Step 1: Dataset Preparation
 
