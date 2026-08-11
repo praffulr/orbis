@@ -117,12 +117,12 @@ Step 2(alt): Train Max-Pooling Probe
 python "Binary Classification/train_probe_final_max.py"
 ```
 
-Step 4: Generate Attention Weights
+Step 3: Generate Attention Weights
 ```python
 python "Binary Classification/generate_attention_weights.py"
 ```
 
-Step 5: Generate Attention Heatmaps and Overlays
+Step 4: Generate Attention Heatmaps and Overlays
 ```python
 python "Binary Classification/generate_heatmaps.py"
 ```
