@@ -7,6 +7,8 @@ To view our Poster used for the Presentation session - [Poster](https://docs.goo
 
 To reproduce the experiments below, the respective checkpoints can be downloaded from - [checkpoints](https://drive.google.com/drive/folders/1RPixmYdDNdBwpeyYk8LFegW2MghH128q?usp=drive_link)
 
+To view the results and heatmaps of the experiments - [results](https://drive.google.com/drive/folders/1jM6e35PUd1ftvEMwIhTiFTQwBcKyLqT-)
+
 ## Curating Benchmarks
 Since DoTA collects data at a sampling frequency of 10 fps, we subsampled 5 frames of context at 5 fps, for each of the training and test sequences. This is to stay consistent with the original experimental setup on ORBIS, and to not introduce any additional variance in the studies. We used a train-validation split of 4:1 and utilized 3000 data sequences from the DoTA dataset, to derive OOD and ID samples from each sequence, by leveraging the temporal annotations provided by the dataset. We also normalized the data (Layer Norm) before feeding the data into the classifier/self-attention blocks.
 
