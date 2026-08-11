@@ -1,0 +1,60 @@
+\documentclass{article}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{geometry}
+
+\geometry{margin=1in}
+
+\begin{document}
+
+\begin{table}[htbp]
+\centering
+\caption{\textbf{Performance metrics on curated DoTA evaluation benchmark of 3000 samples (2400 train, 600 val)}}
+\label{tab:dota_variants_comparison}
+\vspace{0.5em}
+\small
+\setlength{\tabcolsep}{5pt}
+\bfseries % Makes all default table text bold
+\begin{tabularx}{\textwidth}{>{\centering\arraybackslash}p{6cm} X c c c c}
+\toprule
+\textbf{Probe Input} & \textbf{Method} & \textbf{Accuracy} & \textbf{AUC} & \textbf{Precision} & \textbf{Recall} \\
+\midrule
+
+\multirow{3}{*}{\textbf{Orbis Activations}}
+  & \textbf{Attention Probe} & \fbox{\textbf{0.77}} & \fbox{\textbf{0.85}} & \fbox{\textbf{0.86}} & \fbox{\textbf{0.65}} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Linear Probe} & \textbf{0.68} & \textbf{0.77} & \textbf{0.65} & \textbf{0.78} \\
+  \cmidrule(lr){2-6}
+  & \textbf{MultiClass} & \textbf{0.61*} & \textbf{0.80*} & \textbf{0.37*} & \textbf{0.27*} \\
+
+\midrule
+
+\multirow{2}{*}{\textbf{VJEPA 2.1 Activations}}
+  & \textbf{Attention Probe} & \fbox{\textbf{0.68}} & \fbox{\textbf{0.76}} & \fbox{\textbf{0.68}} & \fbox{\textbf{0.69}} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Linear Probe} & \textbf{0.63} & \textbf{0.71} & \textbf{--} & \textbf{--} \\
+
+\midrule
+
+\multirow{2}{*}{\textbf{Orbis Encoder Embeddings}}
+  & \textbf{Attention Probe} & \fbox{\textbf{0.69}} & \fbox{\textbf{0.75}} & \fbox{\textbf{0.72}} & \fbox{\textbf{0.58}} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Linear Probe} & \textbf{0.57} & \textbf{0.60} & \textbf{0.56} & \textbf{0.57} \\
+
+\midrule
+
+\multirow{3}{*}{\begin{tabular}{c} \textbf{Orbis Training-free Surprise Scores} \end{tabular}}
+  & \textbf{Semantic Head} & \textbf{0.64} & \textbf{0.71} & \textbf{0.75} & \textbf{0.44} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Detailed Head} & \textbf{0.60} & \textbf{0.65} & \textbf{0.60} & \textbf{0.62} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Combined} & \fbox{\textbf{0.69}} & \fbox{\textbf{0.75}} & \fbox{\textbf{0.72}} & \fbox{\textbf{0.63}} \\
+
+\bottomrule
+\multicolumn{6}{l}{\footnotesize \textbf{*Note: MultiClass metrics represent macro-averaged evaluation scores across all classes.}}
+\end{tabularx}
+\end{table}
+
+\end{document}

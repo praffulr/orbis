@@ -1,0 +1,369 @@
+\documentclass{article}
+
+% Using preprint to ensure the footer is appropriate for an internal/project report
+\usepackage[final]{neurips}
+
+% Standard packages
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{graphicx}       % for figures
+\usepackage{amsmath}        % math formulas
+\usepackage{tabularx}
+\usepackage{multirow}
+
+\title{Out-of-Distribution Evaluation of World Models}
+
+\author{
+  Prafful Ravuri, Aniket Pathak, Sushovan Banerjee\\
+  % Update with your current department or institution
+  University of Freiburg
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{center}
+  \vspace{-1em}
+  \small
+  \href{https://github.com/praffulr/orbis/}{\textbf{Code}} \hspace{2.5cm}
+  \href{https://docs.google.com/presentation/d/1vSjIcm-ZPFSqv2tu0EHXunBesxpN75blGTJK6Qp84Kc/edit?usp=sharing}{\textbf{Poster}} \hspace{2.5cm}
+  \href{https://drive.google.com/drive/folders/1jM6e35PUd1ftvEMwIhTiFTQwBcKyLqT-?usp=share_link}{\textbf{Results}}
+\end{center}
+
+
+\begin{abstract}
+\vspace{0.5em}
+  \noindent\textbf{Keywords:} Orbis, VJEPA, DoTA, Retrospective Surprise, Tubelet Size, Diagnostic Probes \newline
+  Orbis proved to yield state-of-the-art performance in long-horizon prediction, especially in challenging scenarios like turning maneuvers and traffic. In this study, we perform an evaluation on Orbis and VJEPA 2.1 world models for Out-of-Distribution (OOD) scenarios.
+  
+\end{abstract}
+
+ 
+
+
+
+\section{Introduction}
+
+
+\section{Background}
+
+We use Orbis's next-frame prediction loss to measure temporal surprise: low loss means high confidence (expected), while high loss signals an anomaly (surprising).
+
+\paragraph{Per-Frame Surprise} 
+For frame $k$:
+\begin{enumerate}
+    \item Encode past frame context up to step $k$.
+    \item Encode the true next frame into latent tokens $z^*$.
+    \item Sample a noise level $t \in (0, 1)$ and Gaussian noise $x_0 \sim \mathcal{N}(0, \mathbf{I})$ to build noisy state $x_t = t \cdot z^* + (1 - t) \cdot x_0$.
+    \item Feed $x_t$, $t$, and context into the world model to predict velocity $\hat{v}$.
+    \item Compute loss against true velocity $v = z^* - x_0$: $\mathcal{L}(t, x_0) = \|\hat{v} - (z^* - x_0)\|_2^2$.
+    \item Repeat for 4 noise levels ($t \in \{0.2, 0.4, 0.6, 0.8\}$) and 3 noise samples per level. Average the 12 loss scores to get the raw surprise score $S_k$.
+\end{enumerate}
+
+\paragraph{Classifier on the Surprise scores}
+We also trained classifiers - Binary and Attention Probing on surprise scores for 3000 samples (2400 train and 600 val) set.
+
+The classifiers were also individually trained on Detailed, Semantic and Combined scores to assess each head.
+
+
+\section{Evaluation Benchmarks} 
+
+Since DoTA collects data at a sampling frequency of 10 fps, we subsampled 5 frames of context at 5 fps, for each of the training and test sequences. This is to stay consistent with the original experimental setup on ORBIS, and to not introduce any additional variance in the studies. We used a train-validation split of 80:20 and utilized 3000 processed samples from the DoTA dataset, to derive OOD and ID samples from each sequence, by leveraging the temporal annotations provided by the dataset. We also normalized the data (Layer Norm) before feeding the data into the classifier/self-attention blocks.
+
+Each clip in DOTA has some segment (ie. some number of frames) which is marked as anomalous and we used this annotation to generate anomalous and non-anomalous frames for a single clip. Also since we need to sample data at 5 fps we picked the alternate frames to convert it from 10 to 5 fps. When we didn't have enough clips after the end of the anomalous section, we picked from start.
+
+DOTA has 9 classes in total - oncoming, leave-to-left, leave-to-right, lateral, moving-ahead-or-waiting, turning, unknown, start-stop-or-stationary, pedestrian
+
+among these we ignored the class unknown and also skipped night frames using annotations!
+
+For the surprise detection experiment, we chose 3000 in-distribution samples to get a calibrated mean and std-dev and used these to normalize our scores for Out-of-Distribution sample scores.
+
+We also used a sample size of 3000 samples and this sample was used to evaluate our classifiers for Orbis activations, Surprise attention and Vjepa activations.
+
+\begin{figure}[h]
+    \centering
+
+    \includegraphics[width=0.8\textwidth]{figures/dataset_class_distribution_bar.png}
+    \caption{Class-distribution of the benchmark curated from DoTA}
+    \label{fig:classDistribution}
+\end{figure}
+
+\section{Methods}
+
+\subsection{Pooling}
+We found attention pooling to perform significantly better in all the variants of classification tasks so far, when compared to Maxpooling.
+\subsection{Loss functions}
+Detail the project management strategies utilized. You can include timelines, calendar coordination efforts, and how development sprints were organized to meet project milestones.
+
+\subsection{Normalization Techniques}
+To standardize the surprise evaluation scores, two distinct normalization procedures were used.
+
+\subsubsection{Z-Score Normalization}
+The surprise evaluation scores were normalized relative to the baseline distribution of in-distribution samples. Specifically, the empirical mean ($\mu_{\text{in}}$) and standard deviation ($\sigma_{\text{in}}$) were calculated from a reference set of $N = 3,000$ raw in-distribution clip scores. For any raw out-of-distribution (OOD) sample score $x$, the Z-score normalized value $z$ is computed as follows:
+
+\begin{equation}
+z = \frac{x - \mu_{\text{in}}}{\sigma_{\text{in}}}
+\end{equation}
+
+When visualizing these metrics as spatial overlays on images, the scores were bounded to a range corresponding to $1\sigma$ to $3\sigma$ deviations to highlight anomalous regions cleanly while suppressing baseline noise.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/zscore.png}
+    \caption{zscore normalization 1-3 std dev}
+    \label{fig:placeholder}
+\end{figure}
+
+\subsubsection{Min-Max Normalization}
+A min-max normalization was also tried directly to the raw, unnormalized scores. To eliminate low-level noise and minor fluctuations, a hard thresholding operation was introduced at $\tau = 0.2$. Let $X$ represent the set of all raw scores, and $x \in X$ be an individual score. The normalized score $x_{\text{norm}}$ is defined by:
+
+\begin{equation}
+x_{\text{norm}} = \frac{x' - \min(X')}{\max(X') - \min(X')}
+\end{equation}
+
+\noindent where $X' = \{x \in X \mid x \ge \tau\}$ represents the thresholded score set, and $x'$ is the thresholded value of the sample.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\linewidth]{figures/minmax.png}
+    \caption{minmax on un-normalized raw-scores}
+    \label{fig:placeholder}
+\end{figure}
+
+\subsection{VJEPA tuning}
+We use the pretrained V-JEPA model as a frozen video feature extractor. No fine-tuning is performed using DoTA anomaly labels. Instead, V-JEPA representations are extracted once and cached for all subsequent probing experiments.
+
+\subsubsection{Input preprocessing and temporal configuration}
+
+We processed the DoTA videos at 10 FPS and sampled the final inputs at 5 FPS. Each sample consists of five consecutive context frames, providing approximately one second of temporal context.
+
+We use a temporal tubelet size of five. This configuration was chosen after observing that a tubelet size of two with five input frames left the final frame unrepresented because the temporal dimension was not evenly divisible by the tubelet size. Since the final frame contains the most recent information about the driving event, excluding it was undesirable for retrospective anomaly detection. Using a tubelet size of five ensures that the complete input sequence contributes to the representation.
+
+The input resolution is $384\times384$ pixels, resulting in a $24\times24$ spatial token grid. The extracted representation therefore contains 576 tokens with 768-dimensional embeddings:
+
+\begin{equation}
+\mathbf{X}\in\mathbb{R}^{576\times768}.
+\end{equation}
+
+\subsubsection{Feature extraction}
+
+V-JEPA is used only for feature extraction and remains frozen throughout the experiments. The resulting representations are cached to avoid repeated inference during probing and hyperparameter optimization. All pooling methods therefore operate on the same frozen V-JEPA features.
+
+\subsubsection{Attention Probe}
+
+We use a lightweight attention probe to aggregate the 576 V-JEPA tokens into a single representation. A learnable query is applied through multi-head attention, with the V-JEPA tokens serving as keys and values. The resulting pooled representation is normalized and passed to a linear binary classifier.
+
+The final configuration uses four attention heads, dropout of 0.1, batch size 32, learning rate $8.6663\times10^{-6}$, and weight decay 0.09767. Adam is used with $\beta_1=0.9$ and $\beta_2=0.999$, with early stopping patience of 10 epochs.
+
+\subsubsection{Max pooling}
+
+Max pooling is used as a non-parametric baseline. For each of the 768 embedding dimensions, the maximum activation across the 576 tokens is selected, producing a single 768-dimensional representation for the binary classifier.
+
+The final configuration uses batch size 64, learning rate $3.4473\times10^{-4}$, weight decay 0.01780, and dropout of 0.1. Adam is used with $\beta_1=0.9$ and $\beta_2=0.99$, with early stopping patience of 10 epochs.
+
+
+
+\section{Experiments}
+
+\subsection{Orbis Activations}
+
+
+\subsection{MultiClass Classification}
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/cm_10x10_multiclass_heatmap.png}
+    \caption{Class-distribution of the benchmark curated from DoTA}
+    \label{fig:architecture}
+\end{figure}
+\subsection{VJEPA Activations}
+The V-JEPA experiments evaluate whether frozen video representations contain sufficient information to distinguish normal and anomalous driving scenarios. Two token aggregation strategies are compared: learned attention pooling and max pooling.
+
+For attention pooling, the best model was obtained at epoch 24. It achieved a training accuracy of 80.63\% and training loss of 0.4263. On the validation set, it achieved an accuracy of 68.87\%, AUROC of 0.7580, precision of 68.20\%, F1 score of 68.53\%, and validation loss of 0.5796.
+
+For max pooling, the best model was obtained at epoch 29. It achieved a training accuracy of 63.26\% and training loss of 0.6401. The validation accuracy was 62.67\%, with an AUROC of 0.7064 and validation loss of 0.6474.
+
+\begin{table}[h]
+\centering
+\caption{V-JEPA binary probing results using different pooling strategies.}
+\label{tab:vjepa_results}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Metric} & \textbf{Attention Pooling} & \textbf{Max Pooling} \\
+\midrule
+Best Epoch & 24 & 29 \\
+Training Accuracy & 80.63\% & 63.26\% \\
+Training Loss & 0.4263 & 0.6401 \\
+Validation Accuracy & 68.87\% & 62.67\% \\
+Validation Loss & 0.5796 & 0.6474 \\
+Validation AUROC & \textbf{0.7580} & 0.7064 \\
+Validation Precision & 68.20\% & -- \\
+Validation F1 & 68.53\% & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The attention-pooling approach provides better validation performance than max pooling. Validation AUROC increases from 0.7064 to 0.7580, while validation accuracy improves from 62.67\% to 68.87\%. This indicates that learning a weighting over the V-JEPA tokens is more effective than independently taking the maximum activation across tokens.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\linewidth]{figures/vjepa_attention_heatmap.png}
+\caption{Attention visualization for a DoTA sample using the trained V-JEPA attention probe. The heatmap is overlaid on the final frame of the input sequence and illustrates the spatial regions receiving relatively higher attention.}
+\label{fig:vjepa_heatmap}
+\end{figure}
+
+The attention visualization provides qualitative evidence for the behavior of the attention-pooling probe. The attention weights are averaged across attention heads and mapped back to the $24\times24$ spatial token grid. A global attention baseline is subtracted to emphasize regions receiving relatively higher attention for the individual sample. The resulting attention map is resized and overlaid on the final input frame.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.65\linewidth]{figures/vjepa_confusion_matrix.png}
+\caption{Confusion matrix of the final V-JEPA attention-pooling model on the validation set. The matrix shows the classification performance for normal and anomalous driving scenarios.}
+\label{fig:vjepa_confusion}
+\end{figure}
+
+The confusion matrix complements the aggregate accuracy and AUROC metrics by showing the class-wise distribution of correct and incorrect predictions. This is particularly relevant for the DoTA setting because the overall accuracy alone does not indicate whether the model performs similarly on normal and anomalous samples.
+
+\subsection{Orbis Embeddings}
+\subsection{Orbis Surprise Scores}
+
+\subsubsection{Visualizing the Encoder Heads}
+When we overlay the normalized surprise scores directly onto the video frames, we can clearly see how each encoder head behaves (Fig. 2):
+\begin{itemize}
+    \item \textbf{Detailed Head:} This head does a much better job than the semantic head at catching the actual structure of the anomaly, though it can look a bit noisy around the edges.
+    \item \textbf{Semantic Head:} This head is less precise and often misses the core layout of the anomalous event.
+    \item \textbf{Combined Encoder:} This gives the cleanest results. It provides the best overlap with the actual anomaly, pinpointing the event while cutting out background noise.
+\end{itemize}
+
+\subsubsection{Impact of Noise Levels}
+Looking at the noise steps from $t = 0.2$ to $t = 0.8$ in Fig. 3, there is a steady rise in the overall surprise factor. The heatmaps get brighter and much more focused as the noise increases. This suggests that higher noise levels actually help the model better understand and distinguish out-of-distribution events from normal backgrounds.
+
+\subsubsection{Classifier Performance}
+We also benchmarked how well these surprise scores perform when fed into downstream classifiers, comparing them against direct feature probing (Table 1):
+\begin{itemize}
+    \item \textbf{Surprise Scores:} The \textit{Combined} surprise scores yield the strongest results in this category with an accuracy of $0.69$ and an AUC of $0.75$. Looking at the individual heads, the \textit{Semantic} head yields better quantitative performance ($0.64$ accuracy) compared to the \textit{Detailed} head ($0.60$ accuracy), even though the Detailed head looks better visually.
+    \item \textbf{Feature Probes:} If we look at training classifiers directly on the model's internal features rather than training-free surprise scores, probing the raw \textit{Orbis Activations} with an Attention Probe gives the highest overall results on the benchmark, reaching an accuracy of $0.77$ and an AUC of $0.85$.
+\end{itemize}
+
+
+%====================
+%Experiments Results
+%====================
+\begin{table}[htbp]
+\centering
+\caption{\textbf{Performance metrics on curated DoTA evaluation benchmark of 3000 samples (2400 train, 600 val)}}
+\label{tab:dota_variants_comparison}
+\vspace{0.5em}
+\small
+\setlength{\tabcolsep}{5pt}
+\bfseries % Makes all default table text bold
+\begin{tabularx}{\textwidth}{>{\centering\arraybackslash}p{4cm} X c c c c}
+\toprule
+\textbf{Probe Input} & \textbf{Method} & \textbf{Accuracy} & \textbf{AUC} & \textbf{Precision} & \textbf{Recall} \\
+\midrule
+
+\multirow{3}{*}{\textbf{Orbis Activations}}
+  & \textbf{Attention Probe} & \fbox{\textbf{0.77}} & \fbox{\textbf{0.85}} & \fbox{\textbf{0.86}} & \fbox{\textbf{0.65}} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Linear Probe} & \textbf{0.68} & \textbf{0.77} & \textbf{0.65} & \textbf{0.78} \\
+  \cmidrule(lr){2-6}
+  & \textbf{MultiClass} & \textbf{0.61*} & \textbf{0.80*} & \textbf{0.37*} & \textbf{0.27*} \\
+
+\midrule
+
+\multirow{2}{*}{\textbf{VJEPA Activations}}
+  & \textbf{Attention Probe} & \fbox{\textbf{0.68}} & \fbox{\textbf{0.76}} & \fbox{\textbf{0.68}} & \fbox{\textbf{0.69}} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Linear Probe} & \textbf{0.63} & \textbf{0.71} & \textbf{--} & \textbf{--} \\
+
+\midrule
+
+\multirow{2}{*}{\textbf{Orbis Encoder}}
+  & \textbf{Attention Probe} & \fbox{\textbf{0.69}} & \fbox{\textbf{0.75}} & \fbox{\textbf{0.72}} & \fbox{\textbf{0.58}} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Linear Probe} & \textbf{0.57} & \textbf{0.60} & \textbf{0.56} & \textbf{0.57} \\
+
+\midrule
+
+\multirow{3}{*}{\begin{tabular}{c} \textbf{Orbis Surprise Scores} \end{tabular}}
+  & \textbf{Semantic Head} & \textbf{0.64} & \textbf{0.71} & \textbf{0.75} & \textbf{0.44} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Detailed Head} & \textbf{0.60} & \textbf{0.65} & \textbf{0.60} & \textbf{0.62} \\
+  \cmidrule(lr){2-6}
+  & \textbf{Combined} & \fbox{\textbf{0.69}} & \fbox{\textbf{0.75}} & \fbox{\textbf{0.72}} & \fbox{\textbf{0.63}} \\
+
+\bottomrule
+\multicolumn{6}{l}{\footnotesize \textbf{*Note: MultiClass metrics represent macro-averaged evaluation scores across all classes.}}
+\end{tabularx}
+\end{table}
+
+Detail the project management strategies utilized. You can include timelines, calendar coordination efforts, and how development sprints were organized to meet project milestones.
+
+\section{Discussion}
+
+Orbis attention probe trained on midblock activations performs better for anomalies involving cars, than for pedestrians 
+Orbis midblock activations perform better than the encoder embeddings, suggesting the capabilities of the world model
+Training-free surprise score evaluation proves to be a good metric for anomaly detection and works best at high noise
+While the Semantic head yields better quantitative performance, the Detailed head generates surprise heatmaps that are qualitatively more representative of the localized anomalies
+While the VJEPA variant achieves a decent performance on anomaly prediction, they often do not attend to anomalies.
+We believe that the VJEPA prediction is motivated by the proximity of objects in the scene rather than the actual anomalies.
+
+
+\section*{Acknowledgements}
+
+We would like to thank the Sudhanshu Mittal, Arian Mousakhan, Silivio Galesso for their invaluable insights and persistent feedback throughout the project. \\
+\newline
+\textbf{AI Statement: } During the running phase of the experiments, the authors utilized Gemini 3.1 Pro, Claude Sonnet and Github Copilot \cite{greenwade93}
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+
+% ==========================================
+% --- APPENDIX
+% ==========================================
+
+\appendix % <--- This switches the numbering to A, B, C...
+
+\section{DataSet subsampling}
+% This will automatically be indexed as "A Additional Design Flows"
+The DoTA dataset is curated from multiple Youtube videos wh
+Each sequence of DoTA has corresponding temporal annotations, with timestamps of when the the anomaly begins and ends. 
+
+The original DoTA videos are recorded at 30 FPS. For the experimental pipeline, the videos were processed at 10 FPS and subsequently sampled at 5 FPS for the V-JEPA experiments.
+
+Each sample contains five context frames. This provides approximately one second of temporal context to the model while reducing the computational cost of processing the full video sequences.
+
+The same preprocessing and sampling procedure is used for the V-JEPA feature extraction pipeline to maintain consistency across the training and validation samples.
+
+
+
+\section{Hyperparameter Optimization}
+For all the variants, Bayesian Hyperparameter Optimization (HPO) was performed using Weights \& Biases. The following hyperparameters were optimized:
+
+\begin{itemize}
+    \item Batch Size
+    \item Learning Rate
+    \item Weight Decay
+    \item AdamW $\beta_1$
+    \item AdamW $\beta_2$
+    \item Early Stopping Patience
+    \item Number of Attention Heads (Attention Pooling only)
+    \item Dropout Probability
+\end{itemize}
+
+All probes were trained using the AdamW optimizer together with Early Stopping based on the validation loss.
+
+\section{HeatMaps}
+View the heatmaps seggregated by source-class, for each variant of the Diagnostic probes \href{https://drive.google.com/drive/folders/1nYQ-vDPLmx2u-Tlx3z-k3wS5PgYqUKkz?usp=share_link}{here}
+\section{Checkpoints}
+View the best Checkpoints recorded for the Diagnostic probes \href{https://drive.google.com/drive/folders/1nYQ-vDPLmx2u-Tlx3z-k3wS5PgYqUKkz?usp=share_link}{here}
+\end{document}
+
+
+\end{document}

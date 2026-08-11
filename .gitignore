@@ -52,11 +52,14 @@ DiagnosticProbes/cached_features/
 DiagnosticProbes/comparisonPlots/
 DiagnosticProbes/confusionMatrices*
 DiagnosticProbes/results/
-DiagnosticProbes/Report/
+DiagnosticProbes/Report/*
+!DiagnosticProbes/Report/*.tex
+!DiagnosticProbes/Report/*.bib
+!DiagnosticProbes/Report/*.sty
+!DiagnosticProbes/Report/*.pdf
 DiagnosticProbes/*.pt
 DiagnosticProbes/*.png
 DiagnosticProbes/*.gif
-*.pdf
 *.png
 *.txt
 *.npy
